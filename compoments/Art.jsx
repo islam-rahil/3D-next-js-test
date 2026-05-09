@@ -12,6 +12,6 @@ export default function Art({ img }) {
       animationStyle="fade"
       animationDuration={1.5}
       animateOnView={false}
-      className="mx-auto aspect-square w-full max-w-lg bg-neutral-950 hover:bg-[#FF7E5A]" />
+      className="mx-auto aspect-square max-w-2xl  bg-neutral-950 hover:bg-[#FF7E5A] my-10 border-white/80 border rounded-md" />
   );
 }
