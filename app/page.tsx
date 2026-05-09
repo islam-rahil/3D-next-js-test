@@ -6,7 +6,7 @@ export default function Home() {
       <div className="h-full w-full grid-cols-3">
         <Art img="/tb1.jpg"/>
         <Art img="/tb2.jpg"/>
-        <Art img="/tb1.jpg"/>
+        <Art img="/tb3.jpg"/>
       </div>
     </main>
   );
