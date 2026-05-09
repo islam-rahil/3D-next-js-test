@@ -4,7 +4,7 @@ import Art from "../compoments/Art"
 export default function Home() {
   return (
     <main className="h-screen bg-[#000] ">
-      <div className="h-full w-full grid grid-cols-3 gap-10">
+      <div className="h-full w-full grid grid-cols-1  sm:grid-cols-3 gap-10">
         
         <div className="flex flex-col justify-center items-center max-w-2xl" >
           <Art img="/tb1.jpg" />
