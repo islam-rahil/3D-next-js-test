@@ -1,10 +1,12 @@
-import TreeScene from "../compoments/objet";
-
+import HouseScene from "../compoments/objet";
+import Art from "../compoments/Art"
 export default function Home() {
   return (
-    <main className="h-screen bg-gradient-to-b from-[#232323] to-[#404040]">
-      <div className="h-full">
-        <TreeScene />
+    <main className="h-screen ">
+      <div className="h-full w-full grid-cols-3">
+        <Art img="/tb1.jpg"/>
+        <Art img="/tb2.jpg"/>
+        <Art img="/tb1.jpg"/>
       </div>
     </main>
   );

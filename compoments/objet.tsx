@@ -18,50 +18,56 @@ function Ground() {
 /* =========================
    MAISON
 ========================= */
-function House() {
-  return (
-    <group>
 
-      {/* Corps de la maison */}
-      <mesh position={[0, 1, 0]} castShadow receiveShadow>
-        <boxGeometry args={[4, 2.5, 4]} />
-        <meshStandardMaterial
-          color="#f5c16c"
-          roughness={0.7}
-        />
-      </mesh>
 
-      {/* Toit */}
-      <mesh
-        position={[0, 3, 0]}
-        rotation={[3, 0,Math.PI / 0.999]}
-        castShadow
-      >
-        <coneGeometry args={[3.3, 2, 4]} />
-        <meshStandardMaterial color="#E43E56" />
-      </mesh>
+// function House() {
+//   return (
+//     <group>
 
-      {/* Porte */}
-      <mesh position={[0, 0.3, 2.02]} castShadow>
-        <boxGeometry args={[0.9, 1.4, 0.1]} />
-        <meshStandardMaterial color="#5c3b28" />
-      </mesh>
+//       {/* Corps de la maison */}
+//       <mesh position={[0, 1, 0]} castShadow receiveShadow>
+//         <boxGeometry args={[4, 2.5, 4]} />
+//         <meshStandardMaterial
+//           color="#f5c16c"
+//           roughness={0.7}
+//         />
+//       </mesh>
 
-      {/* Fenêtre gauche */}
-      <mesh position={[-1.2, 1.2, 2.02]} castShadow>
-        <boxGeometry args={[0.8, 0.8, 0.1]} />
-        <meshStandardMaterial color="#9ad0ec" />
-      </mesh>
+//       {/* Toit */}
+//       <mesh
+//         position={[0, 3, 0]}
+//         rotation={[3, 0,Math.PI / 0.999]}
+//         castShadow
+//       >
+//         <coneGeometry args={[3.3, 2, 4]} />
+//         <meshStandardMaterial color="#E43E56" />
+//       </mesh>
 
-      {/* Fenêtre droite */}
-      <mesh position={[1.2, 1.2, 2.02]} castShadow>
-        <boxGeometry args={[0.8, 0.8, 0.1]} />
-        <meshStandardMaterial color="#9ad0ec" />
-      </mesh>
+//       {/* Porte */}
+//       <mesh position={[0, 0.3, 2.02]} castShadow>
+//         <boxGeometry args={[0.9, 1.4, 0.1]} />
+//         <meshStandardMaterial color="#5c3b28" />
+//       </mesh>
 
-    </group>
-  );
-}
+//       {/* Fenêtre gauche */}
+//       <mesh position={[-1.2, 1.2, 2.02]} castShadow>
+//         <boxGeometry args={[0.8, 0.8, 0.1]} />
+//         <meshStandardMaterial color="#9ad0ec" />
+//       </mesh>
+
+//       {/* Fenêtre droite */}
+//       <mesh position={[1.2, 1.2, 2.02]} castShadow>
+//         <boxGeometry args={[0.8, 0.8, 0.1]} />
+//         <meshStandardMaterial color="#9ad0ec" />
+//       </mesh>
+
+//     </group>
+//   );
+// }
+
+/*=============================
+  
+
 
 /* =========================
    SCENE
@@ -89,7 +95,7 @@ export default function HouseScene() {
       <Ground />
 
       {/* Maison */}
-      <House />
+      {/* <House /> */}
 
       {/* Contrôles caméra */}
       <OrbitControls />
