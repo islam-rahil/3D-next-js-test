@@ -1,5 +1,6 @@
-import HouseScene from "../compoments/objet";
+//import HouseScene from "../compoments/objet";
 import Art from "../compoments/Art"
+import TextType from "../compoments/TextType";
 
 export default function Home() {
   return (
@@ -8,26 +9,52 @@ export default function Home() {
         
         <div className="flex flex-col justify-center items-center max-w-2xl" >
           <Art img="/tb1.jpg" />
+          
 
-          <h1 className="text-center max-w-xl font-bold text-2xl text-white  m-3 leading-10 h-32">
+        <TextType 
+          text={["LE VOYAGEUR CONTEMPLANT UNE MER DE NUAGES - CASPAR DAVID FRIEDRICH"]}
+          typingSpeed={75}
+          pauseDuration={1500}
+          showCursor
+          cursorCharacter="_"
+          deletingSpeed={50}
+          className="text-center"
+/>
+          {/* <h1 className="text-center max-w-xl font-bold text-2xl text-white  m-3 leading-10 h-32">
             LE VOYAGEUR CONTEMPLANT UNE MER DE NUAGES - CASPAR DAVID FRIEDRICH
-          </h1>
+          </h1> */}
         </div>
         
         <div className="flex flex-col justify-center items-center max-w-2xl" >
           <Art img="/tb2.jpg" />
-
-          <h1 className="text-center max-w-xl font-bold text-2xl text-white  m-3 leading-10 h-32">
+               <TextType 
+          text={["LA JEUNE FILLE À LA PERLE - JOHANNES OU JAN VERMEER DE DELFT"]}
+          typingSpeed={75}
+          pauseDuration={1500}
+          showCursor
+          cursorCharacter="_"
+          deletingSpeed={50}
+          className="text-center"
+/>
+          {/* <h1 className="text-center max-w-xl font-bold text-2xl text-white  m-3 leading-10 h-32">
             LA JEUNE FILLE À LA PERLE - JOHANNES OU JAN VERMEER DE DELFT
-          </h1>
+          </h1> */}
         </div>
 
         <div className="flex flex-col justify-center items-center max-w-2xl" >
           <Art img="/tb4.jpg" />
-
-          <h1 className="text-center max-w-xl font-bold text-2xl text-white  m-3 leading-10 h-32">
+               <TextType 
+          text={["DAME AVEC L'HERMINE - LÉONARD DE VINCI"]}
+          typingSpeed={75}
+          pauseDuration={1500}
+          showCursor
+          cursorCharacter="_"
+          deletingSpeed={50}
+          className="text-center"
+/>
+          {/* <h1 className="text-center max-w-xl font-bold text-2xl text-white  m-3 leading-10 h-32">
             DAME AVEC L'HERMINE - LÉONARD DE VINCI
-          </h1>
+          </h1> */}
         </div>
 
       </div>
