@@ -57,10 +57,11 @@ export default function Home() {
               <TextType
                 text={["Pixel_Back"]}
                 typingSpeed={100}
-                pauseDuration={1500}
+                pauseDuration={0}
                 showCursor
-                cursorCharacter="_"
-                deletingSpeed={50}
+                cursorCharacter=""
+                deletingSpeed={0}
+              
               />
             </span>
           </h1>
