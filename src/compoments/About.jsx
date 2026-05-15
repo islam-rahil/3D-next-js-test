@@ -1,8 +1,15 @@
 import DitherShader from "./dither-shader";
+import { Poppins } from "next/font/google";
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 export default function About() {
   return (
-    <section className="relative overflow-hidden py-24 px-6 md:px-12">
+    <section className={`${poppins.className} relative overflow-hidden py-24 px-6 md:px-12`}>
       
       {/* Background glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-orange-500/20 blur-3xl rounded-full pointer-events-none" />
