@@ -56,10 +56,10 @@ export default function Home() {
             <span className="bg-gradient-to-r from-white via-white to-[#ff7e5a] bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(255,126,90,0.35)]">
               <TextType
                 text={["Pixel_Back"]}
-                typingSpeed={75}
+                typingSpeed={100}
                 pauseDuration={1500}
                 showCursor
-                cursorCharacter="▊"
+                cursorCharacter="_"
                 deletingSpeed={50}
               />
             </span>
