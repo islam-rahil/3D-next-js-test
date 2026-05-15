@@ -1,24 +1,18 @@
-import Art from "../compoments/Art";
-import TextType from "../compoments/TextType";
 import Navbar from "@/src/compoments/Navbar";
-import FaultyTerminal from "@/src/compoments/FaultyTerminal";
 import Footer from "../compoments/Footer";
-import About from "../compoments/About"
-
-
-
-
-
+import About from "../compoments/About";
+import FaultyTerminal from "@/src/compoments/FaultyTerminal";
+import TextType from "../compoments/TextType";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-black text-white overflow-x-hidden font-mono">
+    <main className="min-h-screen bg-black text-white font-mono">
       <Navbar />
 
-      {/* ─── HERO ─── */}
-      <section className="relative w-full min-h-screen flex items-center justify-center">
-
-        {/* CRT background — full cover */}
+      {/* HERO */}
+      <section className="relative flex min-h-screen items-center justify-center overflow-hidden">
+        
+        {/* Background */}
         <div className="absolute inset-0 z-0">
           <FaultyTerminal
             scale={1.5}
@@ -32,72 +26,78 @@ export default function Home() {
             noiseAmp={1}
             chromaticAberration={0}
             dither={0}
-            curvature={0.1}
+            curvature={0.15}
             tint="#ff7e5a"
             mouseReact
             mouseStrength={0.5}
             pageLoadAnimation
-            brightness={0.6}
+            brightness={0.5}
           />
         </div>
 
-        {/* Dark gradient overlay so text stays readable */}
-        <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/60 via-black/30 to-black/80 pointer-events-none" />
+        {/* Overlay */}
+        <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/80 via-black/50 to-black" />
 
-        {/* Hero content */}
-        <div className="relative z-20 px-4 sm:px-8 md:px-16 text-center">
+        {/* Glow */}
+        <div className="absolute top-1/2 left-1/2 z-10 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ff7e5a]/20 blur-[120px]" />
 
-          {/* Eyebrow label */}
-          <p className="mb-4 text-xs sm:text-sm tracking-[0.35em] text-[#ff7e5a]/70 uppercase">
-            Retro Image Effects
-          </p>
+        {/* Content */}
+        <div className="relative z-20 flex max-w-5xl flex-col items-center px-6 text-center">
+          
+          {/* Top label */}
+          <div className="mb-6 rounded-full border border-[#ff7e5a]/20 bg-[#ff7e5a]/10 px-4 py-2 backdrop-blur-md">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#ff7e5a]">
+              Retro Image Effects
+            </p>
+          </div>
 
-          {/* Main title */}
-          <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-bold leading-none tracking-tight text-white drop-shadow-[0_0_30px_rgba(255,126,90,0.6)]">
-            <TextType
-              text={["PixeL_Back"]}
-              typingSpeed={75}
-              pauseDuration={1500}
-              showCursor
-              cursorCharacter="▊"
-              deletingSpeed={50}
-            />
+          {/* Title */}
+          <h1 className="text-5xl font-black leading-none tracking-tight sm:text-7xl md:text-8xl lg:text-[9rem]">
+            <span className="bg-gradient-to-r from-white via-white to-[#ff7e5a] bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(255,126,90,0.35)]">
+              <TextType
+                text={["Pixel_Back"]}
+                typingSpeed={75}
+                pauseDuration={1500}
+                showCursor
+                cursorCharacter="▊"
+                deletingSpeed={50}
+              />
+            </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="mt-6 text-sm sm:text-base md:text-lg text-white/50 max-w-xl mx-auto leading-relaxed">
-            Transform your images into retro art —{" "}
-            <span className="text-[#ff7e5a]">ASCII</span>,{" "}
-            <span className="text-[#ff7e5a]">Game Boy</span>,{" "}
-            <span className="text-[#ff7e5a]">CRT</span> & more.
+          <p className="mt-8 max-w-2xl text-sm leading-relaxed text-zinc-400 sm:text-base md:text-lg">
+            Transform your images into nostalgic digital art using
+            advanced shaders, dithering algorithms and retro visual
+            effects inspired by old CRT monitors and vintage consoles.
           </p>
 
-          {/* CTA */}
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button className="px-8 py-3 bg-[#ff7e5a] text-black font-bold text-sm tracking-widest uppercase hover:bg-white transition-colors duration-200 cursor-pointer">
-              [ START ]
+          {/* Buttons */}
+          <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+            
+            <button className="group relative overflow-hidden rounded-xl bg-[#ff7e5a] px-8 py-4 text-sm font-bold uppercase tracking-[0.2em] text-black transition-all duration-300 hover:scale-105 hover:bg-white">
+              START EXPERIENCE
             </button>
-            <button className="px-8 py-3 border border-white/30 text-white/60 font-bold text-sm tracking-widest uppercase hover:border-[#ff7e5a] hover:text-[#ff7e5a] transition-colors duration-200 cursor-pointer">
-              [ DEMO ]
+
+            <button className="rounded-xl border border-white/10 bg-white/5 px-8 py-4 text-sm font-bold uppercase tracking-[0.2em] text-zinc-300 backdrop-blur-md transition-all duration-300 hover:border-[#ff7e5a] hover:text-[#ff7e5a]">
+              LIVE DEMO
             </button>
           </div>
 
-          {/* Scroll hint */}
-          <div className="mt-16 animate-bounce text-white/30 text-xs tracking-widest">
+          {/* Scroll */}
+          <div className="mt-20 animate-bounce text-xs tracking-[0.3em] text-zinc-500">
             ▼ SCROLL
           </div>
         </div>
       </section>
 
-      {/* ─── About ─── */}
-       <About/>
+      {/* ABOUT */}
+      <About />
 
-      {/* ─── FOOTER ─── */}
-      <Footer/>
+      <Footer />
     </main>
   );
 }
-
 
 
 {/* <div style={{ width: '100%', height: '600px', position: 'relative' }}>

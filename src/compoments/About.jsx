@@ -7,72 +7,89 @@ const poppins = Poppins({
   display: "swap",
 });
 
+const stats = [
+  {
+    title: "8+",
+    subtitle: "Visual Effects",
+  },
+  {
+    title: "HD",
+    subtitle: "High Quality Export",
+  },
+  {
+    title: "100%",
+    subtitle: "Customizable",
+  },
+];
+
 export default function About() {
   return (
-    <section className={`${poppins.className} relative overflow-hidden py-24 px-6 md:px-12`}>
-      
+    <section
+      className={`${poppins.className} relative overflow-hidden py-28`}
+    >
       {/* Background glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-orange-500/20 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute left-1/2 top-20 h-[700px] w-[700px] -translate-x-1/2 rounded-full bg-[#ff7e5a]/10 blur-[140px]" />
 
-      <div className="relative z-10 mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 gap-20 px-6 lg:grid-cols-2 lg:px-10">
         
-        {/* Texte */}
+        {/* LEFT */}
         <div className="flex flex-col justify-center">
-          <span className="mb-4 text-sm uppercase tracking-[0.3em] text-orange-400 font-medium">
-            Projet créatif
+          
+          <span className="mb-5 text-sm font-medium uppercase tracking-[0.3em] text-[#ff7e5a]">
+            Creative Project
           </span>
 
-          <h1 className="text-5xl md:text-6xl font-black leading-tight text-white">
-            À propos de{" "}
-            <span className="text-orange-400">Pixel-back</span>
-          </h1>
+          <h2 className="text-4xl font-black leading-tight text-white sm:text-5xl md:text-6xl">
+            About{" "}
+            <span className="text-[#ff7e5a]">
+              Pixel-back
+            </span>
+          </h2>
 
-          <p className="mt-8 text-lg leading-relaxed text-zinc-300 max-w-2xl">
-            Pixel-back est un projet personnel dédié à l’univers de la
-            pixellisation et du dithering d’images.  
-            L’objectif est de transformer des visuels classiques en œuvres
-            rétro et artistiques grâce à différents effets graphiques.
-          </p>
+          <div className="mt-8 space-y-6 text-lg leading-relaxed text-zinc-400">
+            
+            <p>
+              Pixel-back is a creative experimental platform focused on
+              image pixelization, retro rendering and visual shader effects.
+            </p>
 
-          <p className="mt-5 text-lg leading-relaxed text-zinc-400 max-w-2xl">
-            Le site permet d’explorer plusieurs styles visuels, de générer des
-            rendus uniques, d’importer ses propres images et de télécharger les
-            résultats en quelques secondes.
-          </p>
+            <p>
+              The project transforms modern images into nostalgic digital
+              artworks inspired by vintage consoles, CRT displays and
+              old-school computer graphics.
+            </p>
 
-          <p className="mt-5 text-lg leading-relaxed text-zinc-400 max-w-2xl">
-            Ce projet a été créé par passion pour le design numérique, les
-            shaders et l’esthétique rétro inspirée des anciens écrans et jeux
-            vidéo.
-          </p>
+            <p>
+              Users can upload their own images, apply multiple rendering
+              styles and instantly export unique artistic results.
+            </p>
+          </div>
 
-          {/* Stats / cards */}
-          <div className="mt-10 flex flex-wrap gap-4">
-            <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md px-6 py-4">
-              <h3 className="text-2xl font-bold text-white">8+</h3>
-              <p className="text-sm text-zinc-400">Effets visuels</p>
-            </div>
+          {/* Stats */}
+          <div className="mt-12 flex flex-wrap gap-5">
+            {stats.map((item, index) => (
+              <div
+                key={index}
+                className="rounded-2xl border border-white/10 bg-white/5 px-6 py-5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#ff7e5a]/40 hover:bg-white/10"
+              >
+                <h3 className="text-3xl font-black text-white">
+                  {item.title}
+                </h3>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md px-6 py-4">
-              <h3 className="text-2xl font-bold text-white">HD</h3>
-              <p className="text-sm text-zinc-400">Export qualité</p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md px-6 py-4">
-              <h3 className="text-2xl font-bold text-white">100%</h3>
-              <p className="text-sm text-zinc-400">Personnalisable</p>
-            </div>
+                <p className="mt-1 text-sm text-zinc-400">
+                  {item.subtitle}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Image / Shader */}
-        <div className="relative">
+        {/* RIGHT */}
+        <div className="relative flex items-center justify-center">
           
-          {/* contour glow */}
-          <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-r from-orange-500/30 to-pink-500/20 blur-2xl opacity-70" />
-
-          <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl">
-            <DitherShader
+          {/* Glow */}
+          <div className="absolute -inset-8 rounded-[3rem] bg-gradient-to-r from-[#ff7e5a]/20 to-pink-500/10 blur-3xl" />
+                <DitherShader
               src="/hero2.jpg"
               gridSize={1}
               ditherMode="bayer"
@@ -82,13 +99,17 @@ export default function About() {
               threshold={0.3}
               className="h-[650px] w-full object-cover"
             />
+          {/* Card */}
+          <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-black/40 shadow-[0_0_80px_rgba(255,126,90,0.15)] backdrop-blur-xl">
+            
+            
 
-            {/* overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
-            {/* floating label */}
-            <div className="absolute bottom-6 left-6 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md px-5 py-3">
-              <p className="text-sm text-zinc-300">
+            {/* Floating badge */}
+            <div className="absolute bottom-6 left-6 rounded-2xl border border-white/10 bg-black/40 px-5 py-3 backdrop-blur-xl">
+              <p className="text-sm tracking-wide text-zinc-300">
                 Shader • Dithering • Pixel Art
               </p>
             </div>
