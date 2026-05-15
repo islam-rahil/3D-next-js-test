@@ -11,8 +11,8 @@ const poppins = Poppins({
 });
 
 const hrefs = [
-  { label: "Home",     href: "/#home"     },
-  { label: "Projets",  href: "/#projets"  },
+  { label: "Home",     href: "/"     },
+  { label: "Models",  href: "/models"},
   { label: "Contact",  href: "/#contact"  },
 ];
 
