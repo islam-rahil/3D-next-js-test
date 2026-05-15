@@ -8,7 +8,7 @@ import React, {
   useId,
 } from "react";
 import { motion, useInView } from "motion/react";
-import { cn } from "../app/lib/util";
+import { cn } from "../lib/util";
 
 // ─── Charsets ────────────────────────────────────────────────────────────────
 

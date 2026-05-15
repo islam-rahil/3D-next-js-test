@@ -47,7 +47,7 @@ export default function Navbar() {
       <nav className="mx-auto gap-8 max-w-5xl px-6 h-16 flex items-center justify-between">
 
         <Link href="/" className="group relative text-white font-semibold tracking-tight text-base select-none">
-          <span className="relative z-10">acme.</span>
+          <span className="relative z-10">PixelBack</span>
           <span className="absolute inset-x-0 bottom-0 h-px bg-white scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
         </Link>
 

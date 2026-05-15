@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useCallback, useState } from "react";
-import { cn } from "../app/lib/util";
+import { cn } from "../lib/util";
 
 type DitheringMode = "bayer" | "halftone" | "noise" | "crosshatch";
 type ColorMode = "original" | "grayscale" | "duotone" | "custom";

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 const clash = localFont({
-  src: "../public/Pixeled.ttf",
+  src: "../../public/Pixeled.ttf",
   variable: "--font-clash",
 });
 
