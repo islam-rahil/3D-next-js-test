@@ -1,5 +1,5 @@
 "use client";
-import { AsciiArt } from "./Effect";
+import { AsciiArtStatic } from "./Effect";
 
 interface ArtProps {
   img: string;
@@ -8,16 +8,16 @@ interface ArtProps {
 
 export default function Art({ img, resolution = 200 }: ArtProps) {
   return (
-    <AsciiArt
+    <AsciiArtStatic
       src={img}
       resolution={resolution}
-      hoverColor="#ffffff"
-      hoverRadius={50}
+     // hoverColor="#ffffff"
+      //hoverRadius={15}
       color="#FF7E5A"
-      animationStyle="fade"
-      animationDuration={1.5}
+      //animationStyle="fade"
+      animationDuration={3}
       animateOnView={false}
-      className="mx-auto aspect-square max-w-2xl bg-neutral-950 hover:bg-[#FF7E5A] my-10 rounded-md"
+      className="absolute top-[100%] left-0 mx-auto aspect-square max-w-8xl h-auto bg-neutral-950  rounded-md"
     />
   );
 }

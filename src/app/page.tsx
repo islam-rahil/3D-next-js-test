@@ -3,6 +3,7 @@ import Footer from "../compoments/Footer";
 import About from "../compoments/About";
 import FaultyTerminal from "@/src/compoments/FaultyTerminal";
 import TextType from "../compoments/TextType";
+import Art from "../compoments/Art";
 
 export default function Home() {
   return (
@@ -78,7 +79,9 @@ export default function Home() {
 
       {/* ABOUT */}
       <About />
-
+      <div className="flex flex-col justify-end items-end max-w-8xl">
+         <Art img="/tb2.jpg" resolution={900}/>
+      </div>
       <Footer />
     </main>
   );

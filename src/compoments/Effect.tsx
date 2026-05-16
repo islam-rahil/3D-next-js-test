@@ -1,21 +1,19 @@
 "use client";
-
 import React, {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useCallback,
-  useMemo,
   useId,
 } from "react";
 import { motion, useInView } from "motion/react";
 import { cn } from "../lib/util";
 
-// ─────────────────────────────────────────────
-// CHARSETS
-// ─────────────────────────────────────────────
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-const ASCII_CHARSETS: Record<string, string> = {
+const ASCII_CHARSETS = {
   standard: " .,:;i1tfLCG08@",
   blocks: " ░▒▓█",
   binary: " 01",
@@ -31,90 +29,80 @@ const ASCII_CHARSETS: Record<string, string> = {
   squares: " ▢▣▤▥▦▧▨▩",
   hearts: " ♡♥",
   math: " +-×÷=≠≈∞",
+} as const;
+
+type CharsetPreset = keyof typeof ASCII_CHARSETS;
+
+const isCharsetPreset = (value: string): value is CharsetPreset => {
+  return value in ASCII_CHARSETS;
 };
 
-const MATRIX_CHARSET = "ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ";
+const resolveCharset = (charset: string): string => {
+  if (isCharsetPreset(charset)) {
+    return ASCII_CHARSETS[charset];
+  }
+  return charset;
+};
 
-const resolveCharset = (charset: string): string =>
-  charset in ASCII_CHARSETS ? ASCII_CHARSETS[charset] : charset;
+const resolveCssColor = (
+  color: string,
+  element: HTMLElement | null
+): string => {
+  if (!color) return color;
 
-// ─────────────────────────────────────────────
-// CSS COLOR CACHE (optimized)
-// ─────────────────────────────────────────────
+  if (color.startsWith("var(")) {
+    if (!element) return "#ffffff";
 
-const cssColorCache = new Map<string, string>();
-
-const resolveCssColor = (color: string, element: HTMLElement): string => {
-  if (!color || !color.startsWith("var(")) return color;
-  
-  const cached = cssColorCache.get(color);
-  if (cached) return cached;
-
-  const resolved = getComputedStyle(element).getPropertyValue(color.slice(4, -1)).trim();
-  if (resolved) {
-    cssColorCache.set(color, resolved);
-    return resolved;
+    const tempDiv = document.createElement("div");
+    tempDiv.style.color = color;
+    element.appendChild(tempDiv);
+    const computedColor = getComputedStyle(tempDiv).color;
+    element.removeChild(tempDiv);
+    return computedColor || "#ffffff";
   }
 
-  // Fallback method
-  const tmp = document.createElement("div");
-  tmp.style.color = color;
-  element.appendChild(tmp);
-  const fallback = getComputedStyle(tmp).color || "#ffffff";
-  element.removeChild(tmp);
-  cssColorCache.set(color, fallback);
-  return fallback;
+  return color;
 };
 
-// ─────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────
+type AsciiArtProps = {
+  src: string;
+  /** Number of ASCII columns (character resolution). Higher = more detail. */
+  resolution?: number;
+  /** Charset preset name ("standard", "blocks", "binary", etc.) or custom character string */
+  charset?: CharsetPreset | string;
+  /** Text color for the ASCII art (ignored if colored=true) */
+  color?: string;
+  /** Background color */
+  backgroundColor?: string;
+  /** Convert to inverted colors (dark bg, light text) */
+  inverted?: boolean;
+  /** Enable colored ASCII (uses image colors) */
+  colored?: boolean;
+  /** Enable animation on load */
+  animated?: boolean;
+  /** Animation style */
+  animationStyle?: "fade" | "typewriter" | "matrix" | "none";
+  /** Duration for fade animation in seconds */
+  animationDuration?: number;
+  /** Font family for ASCII characters */
+  fontFamily?: string;
+  /** Container className - use this to control size (e.g., w-full, h-64) */
+  className?: string;
+  /** Only animate when in view */
+  animateOnView?: boolean;
+  /** How the image should fit within the ASCII grid */
+  objectFit?: "cover" | "contain" | "fill";
+};
+const MATRIX_CHARSET = "ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ";
 
-interface AsciiPixel {
+type AsciiPixel = {
   char: string;
   r: number;
   g: number;
   b: number;
-}
-
-type HoverData = {
-  x: number;
-  y: number;
-  velocity: number;
 };
 
-interface AsciiArtProps {
-  src: string;
-  resolution?: number;
-  charset?: string;
-  color?: string;
-  backgroundColor?: string;
-  inverted?: boolean;
-  colored?: boolean;
-  animated?: boolean;
-  animationStyle?: "fade" | "typewriter" | "matrix" | "none";
-  animationDuration?: number;
-  fontFamily?: string;
-  className?: string;
-  animateOnView?: boolean;
-  objectFit?: "cover" | "contain";
-  hoverColor?: string;
-  hoverRadius?: number;
-  hoverEffect?: "glow" | "expand" | "none";
-  hoverIntensity?: number;
-}
-
-// ─────────────────────────────────────────────
-// EASING (precomputed for performance)
-// ─────────────────────────────────────────────
-
-const easeOutCubic = (x: number): number => 1 - (1 - x) ** 3;
-
-// ─────────────────────────────────────────────
-// COMPONENT
-// ─────────────────────────────────────────────
-
-export const AsciiArt = React.memo(({
+export const AsciiArt: React.FC<AsciiArtProps> = ({
   src,
   resolution = 80,
   charset = "standard",
@@ -129,121 +117,91 @@ export const AsciiArt = React.memo(({
   className,
   animateOnView = true,
   objectFit = "cover",
-  hoverColor = "#00ff00",
-  hoverRadius = 90,
-  hoverEffect = "glow",
-  hoverIntensity = 1,
-}: AsciiArtProps) => {
+}) => {
   const uniqueId = useId();
-  
   const [asciiData, setAsciiData] = useState<AsciiPixel[][]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Refs
+  const [hasAnimated, setHasAnimated] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef<number | null>(null);
-  const mousePos = useRef<HoverData | null>(null);
-  const prevMousePos = useRef<{ x: number; y: number; time: number } | null>(null);
-  const hasAnimatedRef = useRef(false);
-  const animStartRef = useRef<number | null>(null);
-  const dimensionsRef = useRef({ width: 0, height: 0 });
-  const hoverCacheRef = useRef<Map<string, { alpha: number; scale: number; offsetX: number; offsetY: number }>>(new Map());
-
+  const animationRef = useRef<number | null>(null);
   const isInView = useInView(containerRef, { once: true, amount: 0.1 });
+
   const shouldStartAnimation = animated && animateOnView ? isInView : animated;
   const shouldShowStatic = !animated || animationStyle === "none";
 
-  // Adaptive resolution based on device performance
-  const adaptiveResolution = useMemo(() => {
-    if (typeof window === "undefined") return resolution;
-    
-    // Reduce resolution on mobile/low-end devices
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) return Math.min(resolution, 60);
-    
-    const w = window.innerWidth;
-    if (w < 640) return Math.min(resolution, 80);
-    if (w < 1024) return Math.min(resolution, 120);
-    return resolution;
-  }, [resolution]);
+  const resolvedCharset = resolveCharset(charset);
+  const effectiveCharset = inverted
+    ? resolvedCharset.split("").reverse().join("")
+    : resolvedCharset;
 
-  const enableHover = adaptiveResolution <= 100; // Disable hover on high-res for performance
-  const enableGlow = adaptiveResolution <= 80 && hoverEffect === "glow";
-
-  const effectiveCharset = useMemo(() => {
-    const base = resolveCharset(charset);
-    return inverted ? base.split("").reverse().join("") : base;
-  }, [charset, inverted]);
-
-  const textColor = color || (inverted ? "#ffffff" : "#000000");
-
-  const charPositions = useMemo(() => {
-    if (!asciiData.length) return null;
-    return { rows: asciiData.length, cols: asciiData[0].length };
-  }, [asciiData]);
-
-  // ─────────────────────────────────────────────
-  // IMAGE → ASCII (optimized)
-  // ─────────────────────────────────────────────
+  const defaultColor = inverted ? "#ffffff" : "#000000";
+  const textColor = color || defaultColor;
 
   useEffect(() => {
-    let cancelled = false;
-    setIsLoaded(false);
-    setError(null);
-    hasAnimatedRef.current = false;
+    let isCancelled = false;
 
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.src = src;
 
     img.onload = () => {
-      if (cancelled) return;
+      if (isCancelled) return;
 
       const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const ctx = canvas.getContext("2d");
       if (!ctx) {
         setError("Canvas context not available");
         return;
       }
 
-      const { naturalWidth: iw, naturalHeight: ih } = img;
-      const charAspect = 0.55;
-      const cols = adaptiveResolution;
-      const rows = Math.floor(cols * charAspect);
-      
+      const imgWidth = img.naturalWidth;
+      const imgHeight = img.naturalHeight;
+      const imgAspect = imgWidth / imgHeight;
+      const charAspectRatio = 0.55;
+
+      const cols = resolution;
+      const rows = Math.floor(cols * charAspectRatio);
+
       canvas.width = cols;
       canvas.height = rows;
 
-      // Optimized image drawing
-      if (objectFit === "contain") {
+      const visualAspect = 1.0;
+
+      let sx = 0,
+        sy = 0,
+        sw = imgWidth,
+        sh = imgHeight;
+
+      if (objectFit === "cover") {
+        if (imgAspect > visualAspect) {
+          sw = imgHeight * visualAspect;
+          sx = (imgWidth - sw) / 2;
+        } else {
+          sh = imgWidth / visualAspect;
+          sy = (imgHeight - sh) / 2;
+        }
+      } else if (objectFit === "contain") {
         ctx.fillStyle = "#000000";
         ctx.fillRect(0, 0, cols, rows);
-        
-        const imgAspect = iw / ih;
-        const targetAspect = cols / rows / charAspect;
-        
+
         let dw, dh, dx, dy;
-        if (imgAspect > targetAspect) {
+        if (imgAspect > visualAspect) {
           dw = cols;
-          dh = cols / imgAspect * charAspect;
+          dh = cols / imgAspect * charAspectRatio;
           dx = 0;
           dy = (rows - dh) / 2;
         } else {
           dh = rows;
-          dw = rows * imgAspect / charAspect;
-          dy = 0;
+          dw = rows * imgAspect / charAspectRatio;
           dx = (cols - dw) / 2;
+          dy = 0;
         }
         ctx.drawImage(img, dx, dy, dw, dh);
-      } else {
-        // cover - optimized with direct scaling
-        const scale = Math.max(cols / iw, rows / ih / charAspect);
-        const sw = cols / scale;
-        const sh = rows / scale / charAspect;
-        const sx = (iw - sw) / 2;
-        const sy = (ih - sh) / 2;
+      }
+
+      if (objectFit !== "contain") {
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cols, rows);
       }
 
@@ -251,36 +209,33 @@ export const AsciiArt = React.memo(({
       try {
         imageData = ctx.getImageData(0, 0, cols, rows);
       } catch {
-        setError("Unable to read image data (CORS)");
+        setError("Unable to read image data (CORS issue)");
         return;
       }
 
       const data = imageData.data;
-      const cLen = effectiveCharset.length - 1;
-      const result: AsciiPixel[][] = new Array(rows);
+      const result: AsciiPixel[][] = [];
 
-      // Optimized pixel processing
       for (let y = 0; y < rows; y++) {
-        const row: AsciiPixel[] = new Array(cols);
-        const rowOffset = y * cols;
-        
+        const row: AsciiPixel[] = [];
         for (let x = 0; x < cols; x++) {
-          const i = (rowOffset + x) * 4;
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          const a = data[i + 3];
-          
-          // Fast brightness calculation
-          const brightness = a === 0 ? 0 : (r * 0.299 + g * 0.587 + b * 0.114) / 255;
-          const charIndex = Math.min(Math.floor(brightness * cLen), cLen);
-          
-          row[x] = {
-            char: effectiveCharset[charIndex] || " ",
-            r, g, b
-          };
+          const idx = (y * cols + x) * 4;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          const a = data[idx + 3];
+
+          const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+          const adjustedBrightness = a === 0 ? 0 : brightness;
+
+          const charIndex = Math.floor(
+            adjustedBrightness * (effectiveCharset.length - 1)
+          );
+          const char = effectiveCharset[charIndex] || " ";
+
+          row.push({ char, r, g, b });
         }
-        result[y] = row;
+        result.push(row);
       }
 
       setAsciiData(result);
@@ -288,330 +243,215 @@ export const AsciiArt = React.memo(({
     };
 
     img.onerror = () => {
-      if (!cancelled) setError("Failed to load image");
+      if (isCancelled) return;
+      setError("Failed to load image");
     };
 
     return () => {
-      cancelled = true;
-      img.onload = null;
-      img.onerror = null;
+      isCancelled = true;
     };
-  }, [src, adaptiveResolution, effectiveCharset, objectFit]);
+  }, [src, resolution, effectiveCharset, objectFit]);
 
-  // ─────────────────────────────────────────────
-  // DRAW (heavily optimized)
-  // ─────────────────────────────────────────────
+  const drawCanvas = useCallback(
+    (progress: number = 1, matrixProgress?: number) => {
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container || asciiData.length === 0) return;
 
-  const drawFrame = useCallback((
-    progress: number,
-    matrixProgress?: number
-  ) => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container || !asciiData.length || !charPositions) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
 
-    const dpr = adaptiveResolution > 120 ? 1 : window.devicePixelRatio || 1;
-    const W = container.clientWidth;
-    const H = container.clientHeight;
-    
-    if (W === 0 || H === 0) return;
+      if (containerWidth === 0 || containerHeight === 0) return;
 
-    // Update canvas dimensions only when needed
-    const targetW = Math.round(W * dpr);
-    const targetH = Math.round(H * dpr);
-    if (canvas.width !== targetW || canvas.height !== targetH) {
-      canvas.width = targetW;
-      canvas.height = targetH;
-      canvas.style.width = `${W}px`;
-      canvas.style.height = `${H}px`;
-    }
+      canvas.width = containerWidth * dpr;
+      canvas.height = containerHeight * dpr;
+      canvas.style.width = `${containerWidth}px`;
+      canvas.style.height = `${containerHeight}px`;
+      ctx.scale(dpr, dpr);
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const resolvedBgColor = resolveCssColor(backgroundColor, container);
+      const resolvedTextColor = resolveCssColor(textColor, container);
 
-    const bgColor = resolveCssColor(backgroundColor, container);
-    const txtColor = resolveCssColor(textColor, container);
-    const hvColor = resolveCssColor(hoverColor, container);
+      if (resolvedBgColor !== "transparent") {
+        ctx.fillStyle = resolvedBgColor;
+        ctx.fillRect(0, 0, containerWidth, containerHeight);
+      } else {
+        ctx.clearRect(0, 0, containerWidth, containerHeight);
+      }
 
-    // Fast background clearing
-    if (bgColor !== "transparent") {
-      ctx.fillStyle = bgColor;
-      ctx.fillRect(0, 0, W, H);
-    } else {
-      ctx.clearRect(0, 0, W, H);
-    }
+      const rows = asciiData.length;
+      const cols = asciiData[0]?.length || 0;
+      if (cols === 0) return;
 
-    const cursor = enableHover ? mousePos.current : null;
-    const { rows, cols } = charPositions;
-    const charW = W / cols;
-    const charH = H / rows;
-    const baseFontSize = Math.min(charW * 1.8, charH * 1.2);
-    
-    ctx.textBaseline = "top";
-    ctx.textAlign = "center";
-    ctx.font = `${baseFontSize}px ${fontFamily}`;
+      const charWidth = containerWidth / cols;
+      const charHeight = containerHeight / rows;
+      const fontSize = Math.min(charWidth * 1.8, charHeight * 1.2);
 
-    const totalChars = rows * cols;
-    const revealedChars = Math.floor(progress * totalChars);
-    const isMatrix = animationStyle === "matrix" && matrixProgress !== undefined;
-    const isTypewriter = animationStyle === "typewriter";
-    const isFade = animationStyle === "fade";
-    
-    let charIndex = 0;
-    let lastShadowBlur = 0;
+      ctx.font = `${fontSize}px ${fontFamily}`;
+      ctx.textBaseline = "top";
+      ctx.textAlign = "center";
 
-    for (let y = 0; y < rows; y++) {
-      const baseY = y * charH;
-      const row = asciiData[y];
-      
-      for (let x = 0; x < cols; x++) {
-        // Typewriter early skip
-        if (isTypewriter && charIndex >= revealedChars) {
-          charIndex++;
-          continue;
-        }
+      const totalChars = rows * cols;
+      const revealedChars = Math.floor(progress * totalChars);
 
-        const pixel = row[x];
-        let cx = x * charW + charW * 0.5;
-        let cy = baseY;
-        let char = pixel.char;
-        let alpha = isFade ? progress : 1;
-        let fill = colored ? `rgb(${pixel.r},${pixel.g},${pixel.b})` : txtColor;
-        let shadowBlur = 0;
+      let charIndex = 0;
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const pixel = asciiData[y][x];
+          const cx = x * charWidth + charWidth / 2;
+          const cy = y * charHeight;
 
-        // Hover effect (optimized with caching)
-        if (cursor && hoverEffect !== "none") {
-          const dx = cx - cursor.x;
-          const dy = cy - cursor.y;
-          const distanceSq = dx * dx + dy * dy;
-          const radiusSq = hoverRadius * hoverRadius;
-          
-          if (distanceSq < radiusSq) {
-            const distance = Math.sqrt(distanceSq);
-            const t = 1 - distance / hoverRadius;
-            const smooth = easeOutCubic(t) * hoverIntensity;
-            
-            fill = hvColor;
-            alpha = Math.max(alpha, 0.35 + smooth * 0.8);
-            
-            // Subtle push effect
-            const push = smooth * 1.5;
-            cx += (dx / hoverRadius) * push;
-            cy += (dy / hoverRadius) * push;
-            
-            if (hoverEffect === "expand") {
-              const scale = 1 + smooth * 0.1;
-              ctx.font = `${baseFontSize * scale}px ${fontFamily}`;
-            } else if (enableGlow) {
-              shadowBlur = 6 + smooth * 10;
-              ctx.shadowColor = hvColor;
-            }
-          }
-        }
-
-        // Matrix effect
-        if (isMatrix) {
-          const cp = (x * 0.02 + y * 0.01) / 2;
-          if (matrixProgress < cp) {
+          if (animationStyle === "typewriter" && charIndex >= revealedChars) {
             charIndex++;
             continue;
           }
-          if (matrixProgress < cp + 0.15) {
-            char = MATRIX_CHARSET[Math.floor(Math.random() * MATRIX_CHARSET.length)];
-            fill = "#00ff00";
-            if (enableGlow) {
-              shadowBlur = 5;
+
+          let displayChar = pixel.char;
+          let displayColor = colored
+            ? `rgb(${pixel.r}, ${pixel.g}, ${pixel.b})`
+            : resolvedTextColor;
+
+          if (animationStyle === "matrix" && matrixProgress !== undefined) {
+            const charProgress = (x * 0.02 + y * 0.01) / 2;
+            if (matrixProgress < charProgress) {
+              charIndex++;
+              continue;
+            } else if (matrixProgress < charProgress + 0.15) {
+              displayChar =
+                MATRIX_CHARSET[
+                  Math.floor(Math.random() * MATRIX_CHARSET.length)
+                ];
+              displayColor = "#00ff00";
               ctx.shadowColor = "#00ff00";
+              ctx.shadowBlur = 5;
+            } else {
+              ctx.shadowBlur = 0;
             }
           }
+
+          ctx.fillStyle = displayColor;
+          ctx.globalAlpha = animationStyle === "fade" ? progress : 1;
+          ctx.fillText(displayChar, cx, cy);
+
+          charIndex++;
+        }
+      }
+
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+    },
+    [
+      asciiData,
+      backgroundColor,
+      colored,
+      textColor,
+      fontFamily,
+      animationStyle,
+    ]
+  );
+
+  useEffect(() => {
+    if (!isLoaded || asciiData.length === 0) return;
+
+    const draw = () => {
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container) {
+        requestAnimationFrame(draw);
+        return;
+      }
+
+      if (shouldShowStatic || hasAnimated || !shouldStartAnimation) {
+        drawCanvas(1);
+        return;
+      }
+
+      const startTime = performance.now();
+      const duration =
+        animationStyle === "fade"
+          ? animationDuration * 1000
+          : animationStyle === "typewriter"
+            ? asciiData.length * asciiData[0]?.length * 2
+            : animationStyle === "matrix"
+              ? 3000
+              : 1000;
+
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        if (animationStyle === "matrix") {
+          drawCanvas(1, progress);
+        } else {
+          drawCanvas(progress);
         }
 
-        // Apply shadow only if changed
-        if (lastShadowBlur !== shadowBlur) {
-          ctx.shadowBlur = shadowBlur;
-          lastShadowBlur = shadowBlur;
+        if (progress < 1) {
+          animationRef.current = requestAnimationFrame(animate);
+        } else {
+          setHasAnimated(true);
         }
-        
-        if (ctx.globalAlpha !== alpha) ctx.globalAlpha = alpha;
-        if (ctx.fillStyle !== fill) ctx.fillStyle = fill;
-        
-        ctx.fillText(char, cx, cy);
-        charIndex++;
-      }
-      
-      // Reset font after each row if modified
-      if (hoverEffect === "expand" && ctx.font !== `${baseFontSize}px ${fontFamily}`) {
-        ctx.font = `${baseFontSize}px ${fontFamily}`;
-      }
-    }
+      };
 
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-    lastShadowBlur = 0;
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    const frameId = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
   }, [
-    asciiData, charPositions, backgroundColor, textColor, hoverColor,
-    hoverRadius, hoverEffect, hoverIntensity, fontFamily, animationStyle,
-    colored, adaptiveResolution, enableHover, enableGlow
+    isLoaded,
+    shouldStartAnimation,
+    shouldShowStatic,
+    hasAnimated,
+    animationStyle,
+    animationDuration,
+    drawCanvas,
+    asciiData,
   ]);
 
-  // ─────────────────────────────────────────────
-  // ANIMATION LOOP
-  // ─────────────────────────────────────────────
+  useIsomorphicLayoutEffect(() => {
+    if (!isLoaded || asciiData.length === 0) return;
 
-  useEffect(() => {
-    if (!isLoaded || !asciiData.length) return;
-
-    const needsAnimation = animated && !shouldShowStatic && !hasAnimatedRef.current && shouldStartAnimation;
-    
-    const animDuration = animationStyle === "fade" ? animationDuration * 1000 :
-                        animationStyle === "typewriter" ? asciiData.length * (asciiData[0]?.length ?? 0) * 1.5 :
-                        animationStyle === "matrix" ? 3000 : 1000;
-
-    let frameId: number | null = null;
-    let lastTimestamp = 0;
-
-    const loop = (ts: number) => {
-      if (needsAnimation) {
-        if (animStartRef.current === null) animStartRef.current = ts;
-        
-        const elapsed = ts - animStartRef.current;
-        const p = Math.min(elapsed / animDuration, 1);
-        
-        if (animationStyle === "matrix") {
-          drawFrame(1, p);
-        } else {
-          drawFrame(p);
-        }
-        
-        if (p < 1) {
-          frameId = requestAnimationFrame(loop);
-        } else {
-          hasAnimatedRef.current = true;
-          drawFrame(1);
-          frameId = null;
-        }
-      } else {
-        drawFrame(1);
-        frameId = null;
-      }
-    };
-
-    frameId = requestAnimationFrame(loop);
-    rafRef.current = frameId;
-
-    return () => {
-      if (frameId) cancelAnimationFrame(frameId);
-      if (rafRef.current === frameId) rafRef.current = null;
-    };
-  }, [isLoaded, shouldStartAnimation, shouldShowStatic, animated, animationStyle, animationDuration, drawFrame, asciiData]);
-
-  // ─────────────────────────────────────────────
-  // MOUSE TRACKING (optimized)
-  // ─────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!enableHover) return;
-    
     const container = containerRef.current;
-    if (!container || !isLoaded) return;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
 
-    let rafId: number | null = null;
-    let needsRedraw = false;
-
-    const scheduleRedraw = () => {
-      if (rafId) return;
-      rafId = requestAnimationFrame(() => {
-        if (needsRedraw) {
-          drawFrame(1);
-          needsRedraw = false;
-        }
-        rafId = null;
-      });
-    };
-
-    const onMove = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      let velocity = 0;
-      const now = performance.now();
-      
-      if (prevMousePos.current) {
-        const dt = Math.max(0.016, (now - prevMousePos.current.time) / 1000);
-        const vx = (x - prevMousePos.current.x) / dt;
-        const vy = (y - prevMousePos.current.y) / dt;
-        velocity = Math.min(3, Math.sqrt(vx * vx + vy * vy) / 200);
-      }
-      
-      prevMousePos.current = { x, y, time: now };
-      mousePos.current = { x, y, velocity };
-      
-      needsRedraw = true;
-      scheduleRedraw();
-    };
-
-    const onLeave = () => {
-      mousePos.current = null;
-      prevMousePos.current = null;
-      needsRedraw = true;
-      scheduleRedraw();
-    };
-
-    container.addEventListener("mousemove", onMove, { passive: true });
-    container.addEventListener("mouseleave", onLeave);
-
-    return () => {
-      container.removeEventListener("mousemove", onMove);
-      container.removeEventListener("mouseleave", onLeave);
-      if (rafId) cancelAnimationFrame(rafId);
-    };
-  }, [enableHover, isLoaded, drawFrame]);
-
-  // ─────────────────────────────────────────────
-  // RESIZE OBSERVER (optimized)
-  // ─────────────────────────────────────────────
+    drawCanvas(1);
+  }, [isLoaded, asciiData, drawCanvas]);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    
+    if (!isLoaded || asciiData.length === 0) return;
+
     const container = containerRef.current;
     if (!container) return;
 
-    let resizeTimeout: number | null = null;
-    
-    const ro = new ResizeObserver(() => {
-      if (resizeTimeout) clearTimeout(resizeTimeout);
-      resizeTimeout = window.setTimeout(() => {
-        drawFrame(1);
-        resizeTimeout = null;
-      }, 50);
+    const resizeObserver = new ResizeObserver(() => {
+      drawCanvas(1);
     });
-    
-    ro.observe(container);
-    
-    return () => {
-      ro.disconnect();
-      if (resizeTimeout) clearTimeout(resizeTimeout);
-    };
-  }, [isLoaded, drawFrame]);
 
-  // Initial draw
-  useEffect(() => {
-    if (isLoaded && asciiData.length && shouldShowStatic) {
-      drawFrame(1);
-    }
-  }, [isLoaded, asciiData, shouldShowStatic, drawFrame]);
+    resizeObserver.observe(container);
 
-  // ─────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────
+    return () => resizeObserver.disconnect();
+  }, [isLoaded, asciiData, drawCanvas]);
 
   if (error) {
     return (
-      <div className={cn("flex items-center justify-center text-red-500 text-sm font-mono", className)}>
+      <div
+        className={cn(
+          "flex items-center justify-center text-red-500 text-sm font-mono",
+          className
+        )}
+      >
         Error: {error}
       </div>
     );
@@ -620,30 +460,29 @@ export const AsciiArt = React.memo(({
   if (!isLoaded) {
     return (
       <div
-        className={cn("flex items-center justify-center text-neutral-500 text-sm font-mono animate-pulse", className)}
+        className={cn(
+          "flex items-center justify-center text-neutral-500 text-sm font-mono animate-pulse",
+          className
+        )}
         style={{ backgroundColor }}
       >
-        Loading…
+        Loading...
       </div>
     );
   }
 
-  const canvas = (
+  const canvasElement = (
     <canvas
       key={uniqueId}
+      id={`ascii-canvas-${uniqueId}`}
       ref={canvasRef}
       className="block w-full h-full"
-      style={{ 
-        transform: "translateZ(0)",
-        backfaceVisibility: "hidden",
-        imageRendering: "crisp-edges"
-      }}
-      aria-label="ASCII art rendering"
+      aria-label="ASCII art rendering of image"
       role="img"
     />
   );
 
-  if (animated && animationStyle === "fade" && !hasAnimatedRef.current) {
+  if (animationStyle === "fade" && animated && !hasAnimated) {
     return (
       <motion.div
         ref={containerRef}
@@ -653,7 +492,7 @@ export const AsciiArt = React.memo(({
         animate={shouldStartAnimation ? { opacity: 1 } : { opacity: 0 }}
         transition={{ duration: animationDuration * 0.3 }}
       >
-        {canvas}
+        {canvasElement}
       </motion.div>
     );
   }
@@ -661,20 +500,16 @@ export const AsciiArt = React.memo(({
   return (
     <div
       ref={containerRef}
-      className={cn("overflow-hidden relative", className)}
+      className={cn("overflow-hidden", className)}
       style={{ backgroundColor }}
     >
-      {canvas}
+      {canvasElement}
     </div>
   );
-});
+};
 
-AsciiArt.displayName = "AsciiArt";
-
-// ─────────────────────────────────────────────
-// STATIC VERSION
-// ─────────────────────────────────────────────
-
-export const AsciiArtStatic = (props: Omit<AsciiArtProps, "animated" | "animationStyle">) => (
-  <AsciiArt {...props} animated={false} animationStyle="none" />
-);
+export const AsciiArtStatic: React.FC<
+  Omit<AsciiArtProps, "animated" | "animationStyle">
+> = (props) => {
+  return <AsciiArt {...props} animated={false} animationStyle="none" />;
+};
