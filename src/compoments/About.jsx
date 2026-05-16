@@ -7,29 +7,26 @@ const poppins = Poppins({
   display: "swap",
 });
 
-const stats = [
-  {
-    title: "8+",
-    subtitle: "Visual Effects",
-  },
-  {
-    title: "HD",
-    subtitle: "High Quality Export",
-  },
-  {
-    title: "100%",
-    subtitle: "Customizable",
-  },
-];
+// const stats = [
+//   {
+//     title: "8+",
+//     subtitle: "Visual Effects",
+//   },
+//   {
+//     title: "HD",
+//     subtitle: "High Quality Export",
+//   },
+//   {
+//     title: "100%",
+//     subtitle: "Customizable",
+//   },
+// ];
 
 export default function About() {
   return (
     <section
       className={`${poppins.className} relative overflow-hidden py-28`}
     >
-      {/* Background glow */}
-      <div className="absolute left-1/2 top-20 h-[700px] w-[700px] -translate-x-1/2 rounded-full bg-[#ff7e5a]/10 blur-[140px]" />
-
       <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 gap-20 px-6 lg:grid-cols-2 lg:px-10">
         
         {/* LEFT */}
@@ -66,7 +63,7 @@ export default function About() {
           </div>
 
           {/* Stats */}
-          <div className="mt-12 flex flex-wrap gap-5">
+          {/* <div className="mt-12 flex flex-wrap gap-5">
             {stats.map((item, index) => (
               <div
                 key={index}
@@ -81,7 +78,7 @@ export default function About() {
                 </p>
               </div>
             ))}
-          </div>
+          </div> */}
         </div>
 
         {/* RIGHT */}

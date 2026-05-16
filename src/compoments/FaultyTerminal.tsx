@@ -239,6 +239,9 @@ function hexToRgb(hex: string): [number, number, number] {
   return [((num >> 16) & 255) / 255, ((num >> 8) & 255) / 255, (num & 255) / 255];
 }
 
+// Mouse delta threshold — skip GPU write if movement is sub-pixel
+const MOUSE_EPSILON = 0.0005;
+
 export default function FaultyTerminal({
   scale = 1,
   gridMul = [2, 1],
@@ -255,39 +258,39 @@ export default function FaultyTerminal({
   tint = '#ffffff',
   mouseReact = true,
   mouseStrength = 0.2,
-  dpr,                          // ✅ FIX 1 — plus de window dans les params par défaut
+  dpr,
   pageLoadAnimation = true,
   brightness = 1,
   className,
   style,
   ...rest
 }: FaultyTerminalProps) {
-  const containerRef        = useRef<HTMLDivElement>(null);
-  const programRef          = useRef<Program | null>(null);
-  const rendererRef         = useRef<Renderer | null>(null);
-  const mouseRef            = useRef({ x: 0.5, y: 0.5 });
-  const smoothMouseRef      = useRef({ x: 0.5, y: 0.5 });
-  const frozenTimeRef       = useRef(0);
-  const rafRef              = useRef<number>(0);
+  const containerRef          = useRef<HTMLDivElement>(null);
+  const programRef            = useRef<Program | null>(null);
+  const rendererRef           = useRef<Renderer | null>(null);
+  const mouseRef              = useRef({ x: 0.5, y: 0.5 });
+  const smoothMouseRef        = useRef({ x: 0.5, y: 0.5 });
+  const frozenTimeRef         = useRef(0);
+  const rafRef                = useRef<number>(0);
   const loadAnimationStartRef = useRef<number>(0);
-  const timeOffsetRef       = useRef<number>(Math.random() * 100);
+  const animationDoneRef      = useRef<boolean>(!pageLoadAnimation); // OPT 2
+  const timeOffsetRef         = useRef<number>(Math.random() * 100);
 
-  // ✅ FIX 1 — window accédé côté client uniquement, jamais au parse du module
-  const resolvedDpr = typeof window !== 'undefined'
-    ? Math.min(dpr ?? window.devicePixelRatio ?? 1, 2)
-    : 1;
+  // OPT 1 — DPR computed once; window is only touched client-side
+  const resolvedDprRef = useRef<number>(0);
+  if (resolvedDprRef.current === 0 && typeof window !== 'undefined') {
+    resolvedDprRef.current = Math.min(dpr ?? window.devicePixelRatio ?? 1, 2);
+  }
+  const resolvedDpr = resolvedDprRef.current || 1;
 
-  // ✅ FIX 2 — tintVec stabilisé ; on passe une clé string primitive dans useEffect
-  //            pour éviter un remount à chaque render si `tint` n'a pas changé
   const tintVec = useMemo(() => hexToRgb(tint), [tint]);
 
-  // ✅ FIX 3 — gridMul est un array : sa référence change à chaque render si passé
-  //            inline ([2,1]). On le stabilise avec une clé string.
+  // Stable primitive key for gridMul (array ref changes every render when passed inline)
   const gridMulKey = `${gridMul[0]},${gridMul[1]}`;
 
   const ditherValue = useMemo(
     () => (typeof dither === 'boolean' ? (dither ? 1 : 0) : dither),
-    [dither]
+    [dither],
   );
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -295,8 +298,8 @@ export default function FaultyTerminal({
     if (!ctn) return;
     const rect = ctn.getBoundingClientRect();
     mouseRef.current = {
-      x:  (e.clientX - rect.left)  / rect.width,
-      y: 1 - (e.clientY - rect.top) / rect.height,
+      x:      (e.clientX - rect.left)  / rect.width,
+      y: 1 - (e.clientY - rect.top)  / rect.height,
     };
   }, []);
 
@@ -304,7 +307,6 @@ export default function FaultyTerminal({
     const ctn = containerRef.current;
     if (!ctn) return;
 
-    // gridMul reconstruit depuis la clé stable
     const [gmX, gmY] = gridMulKey.split(',').map(Number) as [number, number];
 
     const renderer = new Renderer({ dpr: resolvedDpr });
@@ -318,25 +320,25 @@ export default function FaultyTerminal({
       vertex:   vertexShader,
       fragment: fragmentShader,
       uniforms: {
-        iTime:                { value: 0 },
-        iResolution:          { value: new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height) },
-        uScale:               { value: scale },
-        uGridMul:             { value: new Float32Array([gmX, gmY]) },
-        uDigitSize:           { value: digitSize },
-        uScanlineIntensity:   { value: scanlineIntensity },
-        uGlitchAmount:        { value: glitchAmount },
-        uFlickerAmount:       { value: flickerAmount },
-        uNoiseAmp:            { value: noiseAmp },
-        uChromaticAberration: { value: chromaticAberration },
-        uDither:              { value: ditherValue },
-        uCurvature:           { value: curvature },
-        uTint:                { value: new Color(tintVec[0], tintVec[1], tintVec[2]) },
-        uMouse:               { value: new Float32Array([0.5, 0.5]) },
-        uMouseStrength:       { value: mouseStrength },
-        uUseMouse:            { value: mouseReact ? 1 : 0 },
-        uPageLoadProgress:    { value: pageLoadAnimation ? 0 : 1 },
-        uUsePageLoadAnimation:{ value: pageLoadAnimation ? 1 : 0 },
-        uBrightness:          { value: brightness },
+        iTime:                 { value: 0 },
+        iResolution:           { value: new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height) },
+        uScale:                { value: scale },
+        uGridMul:              { value: new Float32Array([gmX, gmY]) },
+        uDigitSize:            { value: digitSize },
+        uScanlineIntensity:    { value: scanlineIntensity },
+        uGlitchAmount:         { value: glitchAmount },
+        uFlickerAmount:        { value: flickerAmount },
+        uNoiseAmp:             { value: noiseAmp },
+        uChromaticAberration:  { value: chromaticAberration },
+        uDither:               { value: ditherValue },
+        uCurvature:            { value: curvature },
+        uTint:                 { value: new Color(tintVec[0], tintVec[1], tintVec[2]) },
+        uMouse:                { value: new Float32Array([0.5, 0.5]) },
+        uMouseStrength:        { value: mouseStrength },
+        uUseMouse:             { value: mouseReact ? 1 : 0 },
+        uPageLoadProgress:     { value: pageLoadAnimation ? 0 : 1 },
+        uUsePageLoadAnimation: { value: pageLoadAnimation ? 1 : 0 },
+        uBrightness:           { value: brightness },
       },
     });
     programRef.current = program;
@@ -360,9 +362,7 @@ export default function FaultyTerminal({
     const update = (t: number) => {
       rafRef.current = requestAnimationFrame(update);
 
-      if (pageLoadAnimation && loadAnimationStartRef.current === 0)
-        loadAnimationStartRef.current = t;
-
+      // — Time ——————————————————————————————————————————
       if (!pause) {
         const elapsed = (t * 0.001 + timeOffsetRef.current) * timeScale;
         program.uniforms.iTime.value = elapsed;
@@ -371,19 +371,31 @@ export default function FaultyTerminal({
         program.uniforms.iTime.value = frozenTimeRef.current;
       }
 
-      if (pageLoadAnimation && loadAnimationStartRef.current > 0) {
+      // — Page-load animation (OPT 2: skip once complete) ——
+      if (!animationDoneRef.current) {
+        if (loadAnimationStartRef.current === 0)
+          loadAnimationStartRef.current = t;
+
         const progress = Math.min((t - loadAnimationStartRef.current) / 2000, 1);
         program.uniforms.uPageLoadProgress.value = progress;
+
+        if (progress >= 1) animationDoneRef.current = true;
       }
 
+      // — Mouse smoothing (OPT 3: skip if delta is negligible) ——
       if (mouseReact) {
         const sm = smoothMouseRef.current;
         const m  = mouseRef.current;
-        sm.x += (m.x - sm.x) * 0.08;
-        sm.y += (m.y - sm.y) * 0.08;
-        const mu = program.uniforms.uMouse.value as Float32Array;
-        mu[0] = sm.x;
-        mu[1] = sm.y;
+        const dx = (m.x - sm.x) * 0.08;
+        const dy = (m.y - sm.y) * 0.08;
+
+        if (Math.abs(dx) > MOUSE_EPSILON || Math.abs(dy) > MOUSE_EPSILON) {
+          sm.x += dx;
+          sm.y += dy;
+          const mu = program.uniforms.uMouse.value as Float32Array;
+          mu[0] = sm.x;
+          mu[1] = sm.y;
+        }
       }
 
       renderer.render({ scene: mesh });
@@ -400,14 +412,13 @@ export default function FaultyTerminal({
       if (gl.canvas.parentElement === ctn) ctn.removeChild(gl.canvas);
       gl.getExtension('WEBGL_lose_context')?.loseContext();
       loadAnimationStartRef.current = 0;
-      timeOffsetRef.current = Math.random() * 100;
+      animationDoneRef.current      = !pageLoadAnimation;
+      timeOffsetRef.current         = Math.random() * 100;
     };
   }, [
-    // ✅ FIX 3 — gridMulKey (string) au lieu de gridMul (array) → ref stable
     resolvedDpr, pause, timeScale, scale, gridMulKey,
     digitSize, scanlineIntensity, glitchAmount, flickerAmount,
     noiseAmp, chromaticAberration, ditherValue, curvature,
-    // ✅ FIX 2 — tintVec est stable grâce à useMemo(tint) — ok dans dep array
     tintVec, mouseReact, mouseStrength, pageLoadAnimation, brightness,
     handleMouseMove,
   ]);

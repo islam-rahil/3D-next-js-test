@@ -11,7 +11,7 @@ export default function Home() {
 
       {/* HERO */}
       <section className="relative flex min-h-screen items-center justify-center overflow-hidden">
-        
+
         {/* Background */}
         <div className="absolute inset-0 z-0">
           <FaultyTerminal
@@ -43,25 +43,19 @@ export default function Home() {
 
         {/* Content */}
         <div className="relative z-20 flex max-w-5xl flex-col items-center px-6 text-center">
-          
-          {/* Top label */}
-          <div className="mb-6 rounded-full border border-[#ff7e5a]/20 bg-[#ff7e5a]/10 px-4 py-2 backdrop-blur-md">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#ff7e5a]">
-              Retro Image Effects
-            </p>
-          </div>
+
+        
 
           {/* Title */}
           <h1 className="text-5xl font-black leading-none tracking-tight sm:text-7xl md:text-8xl lg:text-[9rem]">
-            <span className="bg-gradient-to-r from-white via-white to-[#ff7e5a] bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(255,126,90,0.35)]">
+            <span className="bg-white bg-clip-text text-transparent drop-shadow-[0_0_45px_rgba(255,126,90,0.35)]">
               <TextType
-                text={["Pixel_Back"]}
+                text={["PixelBack"]}
                 typingSpeed={100}
                 pauseDuration={0}
                 showCursor
                 cursorCharacter=""
                 deletingSpeed={0}
-              
               />
             </span>
           </h1>
@@ -75,19 +69,9 @@ export default function Home() {
 
           {/* Buttons */}
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-            
             <button className="group relative overflow-hidden rounded-xl bg-[#ff7e5a] px-8 py-4 text-sm font-bold uppercase tracking-[0.2em] text-black transition-all duration-300 hover:scale-105 hover:bg-white">
               START EXPERIENCE
             </button>
-
-            <button className="rounded-xl border border-white/10 bg-white/5 px-8 py-4 text-sm font-bold uppercase tracking-[0.2em] text-zinc-300 backdrop-blur-md transition-all duration-300 hover:border-[#ff7e5a] hover:text-[#ff7e5a]">
-              LIVE DEMO
-            </button>
-          </div>
-
-          {/* Scroll */}
-          <div className="mt-20 animate-bounce text-xs tracking-[0.3em] text-zinc-500">
-            ▼ SCROLL
           </div>
         </div>
       </section>
@@ -99,7 +83,6 @@ export default function Home() {
     </main>
   );
 }
-
 
 {/* <div style={{ width: '100%', height: '600px', position: 'relative' }}>
   <Dither

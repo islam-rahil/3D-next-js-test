@@ -1,10 +1,19 @@
+import Art from "./Art"
+
 export default function Footer()
 {
     return(
 
-      <footer className="px-4 sm:px-8 md:px-16 py-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-white/30 text-xs tracking-widest">
-        <span>PIXEL_BACK © {new Date().getFullYear()}</span>
-        <span className="text-[#ff7e5a]/50">v1.0</span>
+      <footer className="flex flex-col sm:flex-row justify-between items-center gap-5">
+
+      <div className="">
+         <Art img="/tb2.jpg" resolution={700}/>
+      </div>
+
+      <div className="flex flex-col gap-4 justify-between items-start ">
+           <h1 className="text-5xl font-black leading-none tracking-tight sm:text-7xl md:text-8xl lg:text-[9rem]">PixelBack</h1>
+      </div>
+     
       </footer>
 
     );

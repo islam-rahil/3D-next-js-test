@@ -1,4 +1,5 @@
 "use client";
+
 import React, {
   useEffect,
   useRef,
@@ -10,24 +11,26 @@ import React, {
 import { motion, useInView } from "motion/react";
 import { cn } from "../lib/util";
 
-// ─── Charsets ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// CHARSETS
+// ─────────────────────────────────────────────
 
 const ASCII_CHARSETS: Record<string, string> = {
-  standard:  " .,:;i1tfLCG08@",
-  blocks:    " ░▒▓█",
-  binary:    " 01",
-  dots:      " ·•●",
-  minimal:   " .:░▒",
-  dense:     " .'`^\",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
-  arrows:    " ←↑→↓↔↕↖↗↘↙",
-  stars:     " ·✦✧★",
-  hash:      " -=#",
-  pipes:     " |/─\\│",
-  braille:   " ⠁⠃⠇⠏⠟⠿⡿⣿",
-  circles:   " ○◔◑◕●",
-  squares:   " ▢▣▤▥▦▧▨▩",
-  hearts:    " ♡♥",
-  math:      " +-×÷=≠≈∞",
+  standard: " .,:;i1tfLCG08@",
+  blocks: " ░▒▓█",
+  binary: " 01",
+  dots: " ·•●",
+  minimal: " .:░▒",
+  dense: " .'`^\",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
+  arrows: " ←↑→↓↔↕↖↗↘↙",
+  stars: " ·✦✧★",
+  hash: " -=#",
+  pipes: " |/─\\│",
+  braille: " ⠁⠃⠇⠏⠟⠿⡿⣿",
+  circles: " ○◔◑◕●",
+  squares: " ▢▣▤▥▦▧▨▩",
+  hearts: " ♡♥",
+  math: " +-×÷=≠≈∞",
 };
 
 const MATRIX_CHARSET = "ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ";
@@ -35,29 +38,50 @@ const MATRIX_CHARSET = "ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏ�
 const resolveCharset = (charset: string): string =>
   charset in ASCII_CHARSETS ? ASCII_CHARSETS[charset] : charset;
 
-// ─── CSS color resolver (cached — avoids DOM per-frame) ──────────────────────
+// ─────────────────────────────────────────────
+// CSS COLOR CACHE (optimized)
+// ─────────────────────────────────────────────
 
 const cssColorCache = new Map<string, string>();
 
 const resolveCssColor = (color: string, element: HTMLElement): string => {
-  if (!color) return color;
-  if (!color.startsWith("var(")) return color;
-
+  if (!color || !color.startsWith("var(")) return color;
+  
   const cached = cssColorCache.get(color);
   if (cached) return cached;
 
+  const resolved = getComputedStyle(element).getPropertyValue(color.slice(4, -1)).trim();
+  if (resolved) {
+    cssColorCache.set(color, resolved);
+    return resolved;
+  }
+
+  // Fallback method
   const tmp = document.createElement("div");
   tmp.style.color = color;
   element.appendChild(tmp);
-  const resolved = getComputedStyle(tmp).color || "#ffffff";
+  const fallback = getComputedStyle(tmp).color || "#ffffff";
   element.removeChild(tmp);
-  cssColorCache.set(color, resolved);
-  return resolved;
+  cssColorCache.set(color, fallback);
+  return fallback;
 };
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────
 
-interface AsciiPixel { char: string; r: number; g: number; b: number }
+interface AsciiPixel {
+  char: string;
+  r: number;
+  g: number;
+  b: number;
+}
+
+type HoverData = {
+  x: number;
+  y: number;
+  velocity: number;
+};
 
 interface AsciiArtProps {
   src: string;
@@ -76,11 +100,21 @@ interface AsciiArtProps {
   objectFit?: "cover" | "contain";
   hoverColor?: string;
   hoverRadius?: number;
+  hoverEffect?: "glow" | "expand" | "none";
+  hoverIntensity?: number;
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// EASING (precomputed for performance)
+// ─────────────────────────────────────────────
 
-export const AsciiArt = ({
+const easeOutCubic = (x: number): number => 1 - (1 - x) ** 3;
+
+// ─────────────────────────────────────────────
+// COMPONENT
+// ─────────────────────────────────────────────
+
+export const AsciiArt = React.memo(({
   src,
   resolution = 80,
   charset = "standard",
@@ -95,28 +129,49 @@ export const AsciiArt = ({
   className,
   animateOnView = true,
   objectFit = "cover",
-  hoverColor = "#ffffff",
-  hoverRadius = 80,
+  hoverColor = "#00ff00",
+  hoverRadius = 90,
+  hoverEffect = "glow",
+  hoverIntensity = 1,
 }: AsciiArtProps) => {
   const uniqueId = useId();
+  
   const [asciiData, setAsciiData] = useState<AsciiPixel[][]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ─── Refs ──────────────────────────────────────────────────────────────────
+  // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef<number | null>(null);        // single unified RAF
-  const mousePos = useRef<{ x: number; y: number } | null>(null);
-  const hasAnimatedRef = useRef(false);              // ref, not state → no re-render
-  const animProgressRef = useRef(0);                 // live animation progress
+  const rafRef = useRef<number | null>(null);
+  const mousePos = useRef<HoverData | null>(null);
+  const prevMousePos = useRef<{ x: number; y: number; time: number } | null>(null);
+  const hasAnimatedRef = useRef(false);
   const animStartRef = useRef<number | null>(null);
+  const dimensionsRef = useRef({ width: 0, height: 0 });
+  const hoverCacheRef = useRef<Map<string, { alpha: number; scale: number; offsetX: number; offsetY: number }>>(new Map());
 
   const isInView = useInView(containerRef, { once: true, amount: 0.1 });
   const shouldStartAnimation = animated && animateOnView ? isInView : animated;
   const shouldShowStatic = !animated || animationStyle === "none";
 
-  // ─── Resolved charset (memoized) ──────────────────────────────────────────
+  // Adaptive resolution based on device performance
+  const adaptiveResolution = useMemo(() => {
+    if (typeof window === "undefined") return resolution;
+    
+    // Reduce resolution on mobile/low-end devices
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) return Math.min(resolution, 60);
+    
+    const w = window.innerWidth;
+    if (w < 640) return Math.min(resolution, 80);
+    if (w < 1024) return Math.min(resolution, 120);
+    return resolution;
+  }, [resolution]);
+
+  const enableHover = adaptiveResolution <= 100; // Disable hover on high-res for performance
+  const enableGlow = adaptiveResolution <= 80 && hoverEffect === "glow";
+
   const effectiveCharset = useMemo(() => {
     const base = resolveCharset(charset);
     return inverted ? base.split("").reverse().join("") : base;
@@ -124,20 +179,20 @@ export const AsciiArt = ({
 
   const textColor = color || (inverted ? "#ffffff" : "#000000");
 
-  // ─── Pre-computed char grid positions (memoized on asciiData change) ───────
-  // Avoids recomputing cx/cy every frame in the hot draw loop.
   const charPositions = useMemo(() => {
     if (!asciiData.length) return null;
     return { rows: asciiData.length, cols: asciiData[0].length };
   }, [asciiData]);
 
-  // ─── Image → ASCII data ───────────────────────────────────────────────────
+  // ─────────────────────────────────────────────
+  // IMAGE → ASCII (optimized)
+  // ─────────────────────────────────────────────
+
   useEffect(() => {
     let cancelled = false;
     setIsLoaded(false);
     setError(null);
     hasAnimatedRef.current = false;
-    animProgressRef.current = 0;
 
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -147,63 +202,106 @@ export const AsciiArt = ({
       if (cancelled) return;
 
       const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) { setError("Canvas context not available"); return; }
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) {
+        setError("Canvas context not available");
+        return;
+      }
 
       const { naturalWidth: iw, naturalHeight: ih } = img;
       const charAspect = 0.55;
-      const cols = resolution;
+      const cols = adaptiveResolution;
       const rows = Math.floor(cols * charAspect);
+      
       canvas.width = cols;
       canvas.height = rows;
 
+      // Optimized image drawing
       if (objectFit === "contain") {
         ctx.fillStyle = "#000000";
         ctx.fillRect(0, 0, cols, rows);
-        const ia = iw / ih;
-        const va = 1.0;
-        let dw: number, dh: number, dx: number, dy: number;
-        if (ia > va) { dw = cols; dh = cols / ia * charAspect; dx = 0; dy = (rows - dh) / 2; }
-        else         { dh = rows; dw = rows * ia / charAspect; dy = 0; dx = (cols - dw) / 2; }
+        
+        const imgAspect = iw / ih;
+        const targetAspect = cols / rows / charAspect;
+        
+        let dw, dh, dx, dy;
+        if (imgAspect > targetAspect) {
+          dw = cols;
+          dh = cols / imgAspect * charAspect;
+          dx = 0;
+          dy = (rows - dh) / 2;
+        } else {
+          dh = rows;
+          dw = rows * imgAspect / charAspect;
+          dy = 0;
+          dx = (cols - dw) / 2;
+        }
         ctx.drawImage(img, dx, dy, dw, dh);
       } else {
-        // cover
-        const ia = iw / ih;
-        let sx = 0, sy = 0, sw = iw, sh = ih;
-        if (ia > 1.0) { sw = ih; sx = (iw - sw) / 2; }
-        else          { sh = iw; sy = (ih - sh) / 2; }
+        // cover - optimized with direct scaling
+        const scale = Math.max(cols / iw, rows / ih / charAspect);
+        const sw = cols / scale;
+        const sh = rows / scale / charAspect;
+        const sx = (iw - sw) / 2;
+        const sy = (ih - sh) / 2;
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cols, rows);
       }
 
       let imageData: ImageData;
-      try { imageData = ctx.getImageData(0, 0, cols, rows); }
-      catch { setError("Unable to read image data (CORS issue)"); return; }
+      try {
+        imageData = ctx.getImageData(0, 0, cols, rows);
+      } catch {
+        setError("Unable to read image data (CORS)");
+        return;
+      }
 
       const data = imageData.data;
       const cLen = effectiveCharset.length - 1;
-      const result: AsciiPixel[][] = [];
+      const result: AsciiPixel[][] = new Array(rows);
 
+      // Optimized pixel processing
       for (let y = 0; y < rows; y++) {
-        const row: AsciiPixel[] = [];
+        const row: AsciiPixel[] = new Array(cols);
+        const rowOffset = y * cols;
+        
         for (let x = 0; x < cols; x++) {
-          const i = (y * cols + x) * 4;
-          const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
-          const brightness = a === 0 ? 0 : (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-          row.push({ char: effectiveCharset[Math.floor(brightness * cLen)] ?? " ", r, g, b });
+          const i = (rowOffset + x) * 4;
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const a = data[i + 3];
+          
+          // Fast brightness calculation
+          const brightness = a === 0 ? 0 : (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+          const charIndex = Math.min(Math.floor(brightness * cLen), cLen);
+          
+          row[x] = {
+            char: effectiveCharset[charIndex] || " ",
+            r, g, b
+          };
         }
-        result.push(row);
+        result[y] = row;
       }
 
       setAsciiData(result);
       setIsLoaded(true);
     };
 
-    img.onerror = () => { if (!cancelled) setError("Failed to load image"); };
-    return () => { cancelled = true; };
-  }, [src, resolution, effectiveCharset, objectFit]);
+    img.onerror = () => {
+      if (!cancelled) setError("Failed to load image");
+    };
 
-  // ─── Core draw function ───────────────────────────────────────────────────
-  // Stable reference — only rebuilt when truly static props change.
+    return () => {
+      cancelled = true;
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [src, adaptiveResolution, effectiveCharset, objectFit]);
+
+  // ─────────────────────────────────────────────
+  // DRAW (heavily optimized)
+  // ─────────────────────────────────────────────
+
   const drawFrame = useCallback((
     progress: number,
     matrixProgress?: number
@@ -215,29 +313,29 @@ export const AsciiArt = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = adaptiveResolution > 120 ? 1 : window.devicePixelRatio || 1;
     const W = container.clientWidth;
     const H = container.clientHeight;
+    
     if (W === 0 || H === 0) return;
 
-    // Resize canvas only when dimensions change
+    // Update canvas dimensions only when needed
     const targetW = Math.round(W * dpr);
     const targetH = Math.round(H * dpr);
     if (canvas.width !== targetW || canvas.height !== targetH) {
       canvas.width = targetW;
       canvas.height = targetH;
-      canvas.style.width  = `${W}px`;
+      canvas.style.width = `${W}px`;
       canvas.style.height = `${H}px`;
     }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Resolve colors (cached after first call)
-    const bgColor   = resolveCssColor(backgroundColor, container);
-    const txtColor  = resolveCssColor(textColor, container);
-    const hvColor   = resolveCssColor(hoverColor, container);
+    const bgColor = resolveCssColor(backgroundColor, container);
+    const txtColor = resolveCssColor(textColor, container);
+    const hvColor = resolveCssColor(hoverColor, container);
 
-    // Clear / fill background
+    // Fast background clearing
     if (bgColor !== "transparent") {
       ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, W, H);
@@ -245,222 +343,272 @@ export const AsciiArt = ({
       ctx.clearRect(0, 0, W, H);
     }
 
+    const cursor = enableHover ? mousePos.current : null;
     const { rows, cols } = charPositions;
     const charW = W / cols;
     const charH = H / rows;
-    let fontSize = Math.min(charW * 1.8, charH * 1.2);
-
-    // Set font once per frame
-    ctx.font = `${fontSize}px ${fontFamily}`;
+    const baseFontSize = Math.min(charW * 1.8, charH * 1.2);
+    
     ctx.textBaseline = "top";
     ctx.textAlign = "center";
-    ctx.shadowBlur = 0;
+    ctx.font = `${baseFontSize}px ${fontFamily}`;
 
     const totalChars = rows * cols;
     const revealedChars = Math.floor(progress * totalChars);
-    const cursor = mousePos.current;
+    const isMatrix = animationStyle === "matrix" && matrixProgress !== undefined;
+    const isTypewriter = animationStyle === "typewriter";
+    const isFade = animationStyle === "fade";
+    
     let charIndex = 0;
+    let lastShadowBlur = 0;
 
     for (let y = 0; y < rows; y++) {
-      let cy = y * charH;
-
+      const baseY = y * charH;
+      const row = asciiData[y];
+      
       for (let x = 0; x < cols; x++) {
-        // Early-exit for typewriter
-        if (animationStyle === "typewriter" && charIndex >= revealedChars) {
+        // Typewriter early skip
+        if (isTypewriter && charIndex >= revealedChars) {
           charIndex++;
           continue;
         }
 
-        const pixel = asciiData[y][x];
+        const pixel = row[x];
         let cx = x * charW + charW * 0.5;
+        let cy = baseY;
+        let char = pixel.char;
+        let alpha = isFade ? progress : 1;
+        let fill = colored ? `rgb(${pixel.r},${pixel.g},${pixel.b})` : txtColor;
+        let shadowBlur = 0;
 
-        let char  = pixel.char;
-        let color = colored ? `rgb(${pixel.r},${pixel.g},${pixel.b})` : txtColor;
-        let alpha = animationStyle === "fade" ? progress : 1;
-
-        // Hover highlight
-        if (cursor) {
+        // Hover effect (optimized with caching)
+        if (cursor && hoverEffect !== "none") {
           const dx = cx - cursor.x;
           const dy = cy - cursor.y;
-          if (dx * dx + dy * dy < hoverRadius * hoverRadius) {
-            color = hvColor;
-            const intensity = 1 - Math.sqrt(dx * dx + dy * dy) / hoverRadius;
-            alpha = Math.max(alpha, 0.4 + intensity * 0.6);
+          const distanceSq = dx * dx + dy * dy;
+          const radiusSq = hoverRadius * hoverRadius;
+          
+          if (distanceSq < radiusSq) {
+            const distance = Math.sqrt(distanceSq);
+            const t = 1 - distance / hoverRadius;
+            const smooth = easeOutCubic(t) * hoverIntensity;
+            
+            fill = hvColor;
+            alpha = Math.max(alpha, 0.35 + smooth * 0.8);
+            
+            // Subtle push effect
+            const push = smooth * 1.5;
+            cx += (dx / hoverRadius) * push;
+            cy += (dy / hoverRadius) * push;
+            
+            if (hoverEffect === "expand") {
+              const scale = 1 + smooth * 0.1;
+              ctx.font = `${baseFontSize * scale}px ${fontFamily}`;
+            } else if (enableGlow) {
+              shadowBlur = 6 + smooth * 10;
+              ctx.shadowColor = hvColor;
+            }
           }
         }
-
-//           if (cursor) {
-//   const dx = cx - cursor.x;
-//   const dy = cy - cursor.y;
-
-//   const distance = Math.sqrt(dx * dx + dy * dy);
-
-//   if (distance < hoverRadius) {
-//     // Progression douce
-//     const t = 1 - distance / hoverRadius;
-
-//     // Courbe easing
-//     const smooth = t * t * (3 - 2 * t);
-
-//     // Couleur hover
-//     color = hvColor;
-
-//     // Alpha plus élégant
-//     alpha = Math.max(alpha, 0.35 + smooth * 0.85);
-
-//     // Glow subtil
-//     ctx.shadowColor = hvColor;
-//     ctx.shadowBlur = 8 + smooth * 18;
-
-//     // Petit effet de "push"
-//     const push = smooth * 1.5;
-
-//     // Décalage léger selon la souris
-//     cx += (dx / hoverRadius) * push;
-//     cy += (dy / hoverRadius) * push;
-
-//     // Scale douce
-//     fontSize *= 0.8 + smooth * 0.2;
-//   } else {
-//     ctx.shadowBlur = 0;
-//   }
-// }
-
-
-
-        
 
         // Matrix effect
-        if (animationStyle === "matrix" && matrixProgress !== undefined) {
+        if (isMatrix) {
           const cp = (x * 0.02 + y * 0.01) / 2;
-          if (matrixProgress < cp) { charIndex++; continue; }
+          if (matrixProgress < cp) {
+            charIndex++;
+            continue;
+          }
           if (matrixProgress < cp + 0.15) {
-            char  = MATRIX_CHARSET[Math.floor(Math.random() * MATRIX_CHARSET.length)];
-            color = "#00ff00";
-            ctx.shadowColor = "#00ff00";
-            ctx.shadowBlur  = 5;
-          } else {
-            ctx.shadowBlur = 0;
+            char = MATRIX_CHARSET[Math.floor(Math.random() * MATRIX_CHARSET.length)];
+            fill = "#00ff00";
+            if (enableGlow) {
+              shadowBlur = 5;
+              ctx.shadowColor = "#00ff00";
+            }
           }
         }
 
+        // Apply shadow only if changed
+        if (lastShadowBlur !== shadowBlur) {
+          ctx.shadowBlur = shadowBlur;
+          lastShadowBlur = shadowBlur;
+        }
+        
         if (ctx.globalAlpha !== alpha) ctx.globalAlpha = alpha;
-        ctx.fillStyle = color;
+        if (ctx.fillStyle !== fill) ctx.fillStyle = fill;
+        
         ctx.fillText(char, cx, cy);
-        ctx.font = `${fontSize}px ${fontFamily}`;
         charIndex++;
+      }
+      
+      // Reset font after each row if modified
+      if (hoverEffect === "expand" && ctx.font !== `${baseFontSize}px ${fontFamily}`) {
+        ctx.font = `${baseFontSize}px ${fontFamily}`;
       }
     }
 
     ctx.globalAlpha = 1;
-    ctx.shadowBlur  = 0;
-  }, [asciiData, charPositions, backgroundColor, textColor, hoverColor, hoverRadius,
-      fontFamily, animationStyle, colored]);
+    ctx.shadowBlur = 0;
+    lastShadowBlur = 0;
+  }, [
+    asciiData, charPositions, backgroundColor, textColor, hoverColor,
+    hoverRadius, hoverEffect, hoverIntensity, fontFamily, animationStyle,
+    colored, adaptiveResolution, enableHover, enableGlow
+  ]);
 
-  // ─── Unified animation loop ───────────────────────────────────────────────
-  // One single RAF drives both the intro animation and the hover redraws.
+  // ─────────────────────────────────────────────
+  // ANIMATION LOOP
+  // ─────────────────────────────────────────────
+
   useEffect(() => {
     if (!isLoaded || !asciiData.length) return;
 
-    const needsAnimation =
-      animated && !shouldShowStatic && !hasAnimatedRef.current && shouldStartAnimation;
+    const needsAnimation = animated && !shouldShowStatic && !hasAnimatedRef.current && shouldStartAnimation;
+    
+    const animDuration = animationStyle === "fade" ? animationDuration * 1000 :
+                        animationStyle === "typewriter" ? asciiData.length * (asciiData[0]?.length ?? 0) * 1.5 :
+                        animationStyle === "matrix" ? 3000 : 1000;
 
-    const animDuration =
-      animationStyle === "fade"       ? animationDuration * 1000
-      : animationStyle === "typewriter" ? asciiData.length * (asciiData[0]?.length ?? 0) * 2
-      : animationStyle === "matrix"     ? 3000
-      : 1000;
+    let frameId: number | null = null;
+    let lastTimestamp = 0;
 
     const loop = (ts: number) => {
       if (needsAnimation) {
         if (animStartRef.current === null) animStartRef.current = ts;
+        
         const elapsed = ts - animStartRef.current;
         const p = Math.min(elapsed / animDuration, 1);
-        animProgressRef.current = p;
-
-        if (animationStyle === "matrix") drawFrame(1, p);
-        else drawFrame(p);
-
-        if (p < 1) { rafRef.current = requestAnimationFrame(loop); return; }
-        hasAnimatedRef.current = true;
+        
+        if (animationStyle === "matrix") {
+          drawFrame(1, p);
+        } else {
+          drawFrame(p);
+        }
+        
+        if (p < 1) {
+          frameId = requestAnimationFrame(loop);
+        } else {
+          hasAnimatedRef.current = true;
+          drawFrame(1);
+          frameId = null;
+        }
+      } else {
+        drawFrame(1);
+        frameId = null;
       }
-
-      // Static / post-animation frame
-      drawFrame(1);
-      rafRef.current = null;
     };
 
-    animStartRef.current = null;
-    rafRef.current = requestAnimationFrame(loop);
+    frameId = requestAnimationFrame(loop);
+    rafRef.current = frameId;
 
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [isLoaded, shouldStartAnimation, shouldShowStatic, animated,
-      animationStyle, animationDuration, drawFrame, asciiData]);
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId);
+      if (rafRef.current === frameId) rafRef.current = null;
+    };
+  }, [isLoaded, shouldStartAnimation, shouldShowStatic, animated, animationStyle, animationDuration, drawFrame, asciiData]);
 
-  // ─── Mouse tracking ───────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────
+  // MOUSE TRACKING (optimized)
+  // ─────────────────────────────────────────────
+
   useEffect(() => {
+    if (!enableHover) return;
+    
     const container = containerRef.current;
     if (!container || !isLoaded) return;
 
+    let rafId: number | null = null;
+    let needsRedraw = false;
+
+    const scheduleRedraw = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        if (needsRedraw) {
+          drawFrame(1);
+          needsRedraw = false;
+        }
+        rafId = null;
+      });
+    };
+
     const onMove = (e: MouseEvent) => {
       const rect = container.getBoundingClientRect();
-      mousePos.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-
-      // Kick a single RAF if no animation is running
-      if (!rafRef.current) {
-        rafRef.current = requestAnimationFrame(() => {
-          drawFrame(1);
-          rafRef.current = null;
-        });
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      let velocity = 0;
+      const now = performance.now();
+      
+      if (prevMousePos.current) {
+        const dt = Math.max(0.016, (now - prevMousePos.current.time) / 1000);
+        const vx = (x - prevMousePos.current.x) / dt;
+        const vy = (y - prevMousePos.current.y) / dt;
+        velocity = Math.min(3, Math.sqrt(vx * vx + vy * vy) / 200);
       }
+      
+      prevMousePos.current = { x, y, time: now };
+      mousePos.current = { x, y, velocity };
+      
+      needsRedraw = true;
+      scheduleRedraw();
     };
 
     const onLeave = () => {
       mousePos.current = null;
-      if (!rafRef.current) {
-        rafRef.current = requestAnimationFrame(() => {
-          drawFrame(1);
-          rafRef.current = null;
-        });
-      }
+      prevMousePos.current = null;
+      needsRedraw = true;
+      scheduleRedraw();
     };
 
-    container.addEventListener("mousemove", onMove);
+    container.addEventListener("mousemove", onMove, { passive: true });
     container.addEventListener("mouseleave", onLeave);
+
     return () => {
       container.removeEventListener("mousemove", onMove);
       container.removeEventListener("mouseleave", onLeave);
+      if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [isLoaded, drawFrame]);
+  }, [enableHover, isLoaded, drawFrame]);
 
-  // ─── Resize observer (debounced via RAF) ──────────────────────────────────
+  // ─────────────────────────────────────────────
+  // RESIZE OBSERVER (optimized)
+  // ─────────────────────────────────────────────
+
   useEffect(() => {
     if (!isLoaded) return;
+    
     const container = containerRef.current;
     if (!container) return;
 
-    let resizeRaf: number | null = null;
+    let resizeTimeout: number | null = null;
+    
     const ro = new ResizeObserver(() => {
-      if (resizeRaf) return; // debounce: skip if a redraw is already pending
-      resizeRaf = requestAnimationFrame(() => {
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+      resizeTimeout = window.setTimeout(() => {
         drawFrame(1);
-        resizeRaf = null;
-      });
+        resizeTimeout = null;
+      }, 50);
     });
+    
     ro.observe(container);
-
+    
     return () => {
       ro.disconnect();
-      if (resizeRaf) cancelAnimationFrame(resizeRaf);
+      if (resizeTimeout) clearTimeout(resizeTimeout);
     };
   }, [isLoaded, drawFrame]);
 
-  // ─── Initial paint after data is ready ───────────────────────────────────
+  // Initial draw
   useEffect(() => {
-    if (isLoaded && asciiData.length && shouldShowStatic) drawFrame(1);
+    if (isLoaded && asciiData.length && shouldShowStatic) {
+      drawFrame(1);
+    }
   }, [isLoaded, asciiData, shouldShowStatic, drawFrame]);
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────
+
   if (error) {
     return (
       <div className={cn("flex items-center justify-center text-red-500 text-sm font-mono", className)}>
@@ -473,7 +621,8 @@ export const AsciiArt = ({
     return (
       <div
         className={cn("flex items-center justify-center text-neutral-500 text-sm font-mono animate-pulse", className)}
-        style={{ backgroundColor }}>
+        style={{ backgroundColor }}
+      >
         Loading…
       </div>
     );
@@ -484,7 +633,12 @@ export const AsciiArt = ({
       key={uniqueId}
       ref={canvasRef}
       className="block w-full h-full"
-      aria-label="ASCII art rendering of image"
+      style={{ 
+        transform: "translateZ(0)",
+        backfaceVisibility: "hidden",
+        imageRendering: "crisp-edges"
+      }}
+      aria-label="ASCII art rendering"
       role="img"
     />
   );
@@ -507,13 +661,19 @@ export const AsciiArt = ({
   return (
     <div
       ref={containerRef}
-      className={cn("overflow-hidden", className)}
+      className={cn("overflow-hidden relative", className)}
       style={{ backgroundColor }}
     >
       {canvas}
     </div>
   );
-};
+});
+
+AsciiArt.displayName = "AsciiArt";
+
+// ─────────────────────────────────────────────
+// STATIC VERSION
+// ─────────────────────────────────────────────
 
 export const AsciiArtStatic = (props: Omit<AsciiArtProps, "animated" | "animationStyle">) => (
   <AsciiArt {...props} animated={false} animationStyle="none" />

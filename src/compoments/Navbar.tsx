@@ -51,37 +51,21 @@ export default function Navbar() {
           <span className="absolute inset-x-0 bottom-0 h-px bg-white scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
         </Link>
 
-        <ul ref={navRef} onMouseLeave={hideHighlight} className="hidden md:flex items-center gap-4 relative">
-          <span
-            aria-hidden
-            className="absolute top-1/2 -translate-y-1/2 h-8 rounded-full bg-white/10 pointer-events-none transition-all duration-300 ease-[cubic-bezier(.25,.8,.25,1)]"
-            style={{ left: hoverStyle.left, width: hoverStyle.width, opacity: hoverStyle.opacity }}
-          />
+        <ul ref={navRef} onMouseLeave={hideHighlight} className="hidden md:flex items-center gap-16 relative">
           {hrefs.map(({ label, href }, i) => (
             <li key={i} ref={el => { itemRefs.current[i] = el; }} onMouseEnter={() => { setActive(i); moveHighlight(i); }}>
               <Link
                 href={href}
-                className={["px-4 py-6 rounded-md text-lg font-semibold transition-colors duration-200 select-none",
-                  activeIndex === i ? "text-white" : "text-zinc-400 hover:text-white"].join(" ")}
+                className="group relative text-white font-semibold tracking-tight text-base select-none"
               >
                 {label}
+              <span className="absolute inset-x-0 bottom-0 h-[3px]  bg-[#ff7e5a] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
               </Link>
             </li>
           ))}
         </ul>
 
-        <div className="hidden md:block">
-          <Link
-            href="/#contact"
-            className="relative inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 text-sm font-medium text-white hover:bg-white/10 hover:border-white/25 transition-all duration-200 group overflow-hidden"
-          >
-            <span className="relative z-10">Démarrer</span>
-            <svg className="relative z-10 w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M1 7h12M8 2l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-500 ease-in-out" />
-          </Link>
-        </div>
+       
 
         <button onClick={() => setOpen(o => !o)} aria-label={open ? "Fermer le menu" : "Ouvrir le menu"} aria-expanded={open}
           className="md:hidden flex flex-col justify-center items-center w-9 h-9 gap-1.5">
