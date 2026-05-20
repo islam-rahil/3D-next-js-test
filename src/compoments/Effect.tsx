@@ -5,10 +5,14 @@ import React, {
   useRef,
   useState,
   useCallback,
+  useMemo,
   useId,
 } from "react";
 import { motion, useInView } from "motion/react";
 import { cn } from "../lib/util";
+
+
+
 
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -33,73 +37,52 @@ const ASCII_CHARSETS = {
 
 type CharsetPreset = keyof typeof ASCII_CHARSETS;
 
-const isCharsetPreset = (value: string): value is CharsetPreset => {
-  return value in ASCII_CHARSETS;
-};
+const isCharsetPreset = (value: string): value is CharsetPreset =>
+  value in ASCII_CHARSETS;
 
-const resolveCharset = (charset: string): string => {
-  if (isCharsetPreset(charset)) {
-    return ASCII_CHARSETS[charset];
-  }
-  return charset;
-};
+const resolveCharset = (charset: string): string =>
+  isCharsetPreset(charset) ? ASCII_CHARSETS[charset] : charset;
 
 const resolveCssColor = (
   color: string,
   element: HTMLElement | null
 ): string => {
   if (!color) return color;
+  if (!color.startsWith("var(")) return color;
+  if (!element) return "#ffffff";
 
-  if (color.startsWith("var(")) {
-    if (!element) return "#ffffff";
-
-    const tempDiv = document.createElement("div");
-    tempDiv.style.color = color;
-    element.appendChild(tempDiv);
-    const computedColor = getComputedStyle(tempDiv).color;
-    element.removeChild(tempDiv);
-    return computedColor || "#ffffff";
-  }
-
-  return color;
+  const tempDiv = document.createElement("div");
+  tempDiv.style.color = color;
+  element.appendChild(tempDiv);
+  const computedColor = getComputedStyle(tempDiv).color;
+  element.removeChild(tempDiv);
+  return computedColor || "#ffffff";
 };
 
 type AsciiArtProps = {
   src: string;
-  /** Number of ASCII columns (character resolution). Higher = more detail. */
   resolution?: number;
-  /** Charset preset name ("standard", "blocks", "binary", etc.) or custom character string */
   charset?: CharsetPreset | string;
-  /** Text color for the ASCII art (ignored if colored=true) */
   color?: string;
-  /** Background color */
   backgroundColor?: string;
-  /** Convert to inverted colors (dark bg, light text) */
   inverted?: boolean;
-  /** Enable colored ASCII (uses image colors) */
   colored?: boolean;
-  /** Enable animation on load */
   animated?: boolean;
-  /** Animation style */
   animationStyle?: "fade" | "typewriter" | "matrix" | "none";
-  /** Duration for fade animation in seconds */
   animationDuration?: number;
-  /** Font family for ASCII characters */
   fontFamily?: string;
-  /** Container className - use this to control size (e.g., w-full, h-64) */
   className?: string;
-  /** Only animate when in view */
   animateOnView?: boolean;
-  /** How the image should fit within the ASCII grid */
   objectFit?: "cover" | "contain" | "fill";
 };
+
 const MATRIX_CHARSET = "ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ";
+const MATRIX_CHARSET_LENGTH = MATRIX_CHARSET.length;
 
 type AsciiPixel = {
   char: string;
-  r: number;
-  g: number;
-  b: number;
+  /** Pre-computed `rgb(r,g,b)` string — avoids per-frame allocation in colored mode */
+  color: string;
 };
 
 export const AsciiArt: React.FC<AsciiArtProps> = ({
@@ -131,10 +114,10 @@ export const AsciiArt: React.FC<AsciiArtProps> = ({
   const shouldStartAnimation = animated && animateOnView ? isInView : animated;
   const shouldShowStatic = !animated || animationStyle === "none";
 
-  const resolvedCharset = resolveCharset(charset);
-  const effectiveCharset = inverted
-    ? resolvedCharset.split("").reverse().join("")
-    : resolvedCharset;
+  const effectiveCharset = useMemo(() => {
+    const base = resolveCharset(charset);
+    return inverted ? base.split("").reverse().join("") : base;
+  }, [charset, inverted]);
 
   const defaultColor = inverted ? "#ffffff" : "#000000";
   const textColor = color || defaultColor;
@@ -189,12 +172,12 @@ export const AsciiArt: React.FC<AsciiArtProps> = ({
         let dw, dh, dx, dy;
         if (imgAspect > visualAspect) {
           dw = cols;
-          dh = cols / imgAspect * charAspectRatio;
+          dh = (cols / imgAspect) * charAspectRatio;
           dx = 0;
           dy = (rows - dh) / 2;
         } else {
           dh = rows;
-          dw = rows * imgAspect / charAspectRatio;
+          dw = (rows * imgAspect) / charAspectRatio;
           dx = (cols - dw) / 2;
           dy = 0;
         }
@@ -214,12 +197,14 @@ export const AsciiArt: React.FC<AsciiArtProps> = ({
       }
 
       const data = imageData.data;
-      const result: AsciiPixel[][] = [];
+      const maxCharIdx = effectiveCharset.length - 1;
+      const result: AsciiPixel[][] = new Array(rows);
 
       for (let y = 0; y < rows; y++) {
-        const row: AsciiPixel[] = [];
+        const row: AsciiPixel[] = new Array(cols);
+        const rowOffset = y * cols * 4;
         for (let x = 0; x < cols; x++) {
-          const idx = (y * cols + x) * 4;
+          const idx = rowOffset + x * 4;
           const r = data[idx];
           const g = data[idx + 1];
           const b = data[idx + 2];
@@ -228,14 +213,12 @@ export const AsciiArt: React.FC<AsciiArtProps> = ({
           const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
           const adjustedBrightness = a === 0 ? 0 : brightness;
 
-          const charIndex = Math.floor(
-            adjustedBrightness * (effectiveCharset.length - 1)
-          );
+          const charIndex = Math.floor(adjustedBrightness * maxCharIdx);
           const char = effectiveCharset[charIndex] || " ";
 
-          row.push({ char, r, g, b });
+          row[x] = { char, color: `rgb(${r},${g},${b})` };
         }
-        result.push(row);
+        result[y] = row;
       }
 
       setAsciiData(result);
@@ -267,11 +250,20 @@ export const AsciiArt: React.FC<AsciiArtProps> = ({
 
       if (containerWidth === 0 || containerHeight === 0) return;
 
-      canvas.width = containerWidth * dpr;
-      canvas.height = containerHeight * dpr;
-      canvas.style.width = `${containerWidth}px`;
-      canvas.style.height = `${containerHeight}px`;
-      ctx.scale(dpr, dpr);
+      // Resize backing store ONLY when dimensions actually change.
+      // (Setting canvas.width clears the entire context state, so doing it
+      //  every frame was wiping font/fillStyle/etc. unnecessarily.)
+      const desiredW = Math.floor(containerWidth * dpr);
+      const desiredH = Math.floor(containerHeight * dpr);
+      if (canvas.width !== desiredW || canvas.height !== desiredH) {
+        canvas.width = desiredW;
+        canvas.height = desiredH;
+        canvas.style.width = `${containerWidth}px`;
+        canvas.style.height = `${containerHeight}px`;
+      }
+
+      // Reset transform + apply DPR (cheap; works whether or not we resized).
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const resolvedBgColor = resolveCssColor(backgroundColor, container);
       const resolvedTextColor = resolveCssColor(textColor, container);
@@ -295,47 +287,66 @@ export const AsciiArt: React.FC<AsciiArtProps> = ({
       ctx.textBaseline = "top";
       ctx.textAlign = "center";
 
+      // Hoist mode flags + alpha out of the per-cell loop.
+      const isFade = animationStyle === "fade";
+      const isTypewriter = animationStyle === "typewriter";
+      const isMatrix =
+        animationStyle === "matrix" && matrixProgress !== undefined;
+
+      ctx.globalAlpha = isFade ? progress : 1;
+
       const totalChars = rows * cols;
-      const revealedChars = Math.floor(progress * totalChars);
+      const revealedChars = isTypewriter
+        ? Math.floor(progress * totalChars)
+        : totalChars;
+
+      // Avoid redundant context property writes inside the inner loop.
+      let currentFillStyle: string | null = null;
+      let currentShadowBlur = 0;
+      ctx.shadowBlur = 0;
 
       let charIndex = 0;
       for (let y = 0; y < rows; y++) {
+        const row = asciiData[y];
+        const cy = y * charHeight;
         for (let x = 0; x < cols; x++) {
-          const pixel = asciiData[y][x];
-          const cx = x * charWidth + charWidth / 2;
-          const cy = y * charHeight;
-
-          if (animationStyle === "typewriter" && charIndex >= revealedChars) {
+          if (isTypewriter && charIndex >= revealedChars) {
             charIndex++;
             continue;
           }
 
+          const pixel = row[x];
           let displayChar = pixel.char;
-          let displayColor = colored
-            ? `rgb(${pixel.r}, ${pixel.g}, ${pixel.b})`
-            : resolvedTextColor;
+          let displayColor = colored ? pixel.color : resolvedTextColor;
+          let nextShadowBlur = 0;
 
-          if (animationStyle === "matrix" && matrixProgress !== undefined) {
+          if (isMatrix) {
             const charProgress = (x * 0.02 + y * 0.01) / 2;
-            if (matrixProgress < charProgress) {
+            if (matrixProgress! < charProgress) {
               charIndex++;
               continue;
-            } else if (matrixProgress < charProgress + 0.15) {
+            } else if (matrixProgress! < charProgress + 0.15) {
               displayChar =
                 MATRIX_CHARSET[
-                  Math.floor(Math.random() * MATRIX_CHARSET.length)
+                  Math.floor(Math.random() * MATRIX_CHARSET_LENGTH)
                 ];
               displayColor = "#00ff00";
-              ctx.shadowColor = "#00ff00";
-              ctx.shadowBlur = 5;
-            } else {
-              ctx.shadowBlur = 0;
+              nextShadowBlur = 5;
             }
           }
 
-          ctx.fillStyle = displayColor;
-          ctx.globalAlpha = animationStyle === "fade" ? progress : 1;
-          ctx.fillText(displayChar, cx, cy);
+          if (nextShadowBlur !== currentShadowBlur) {
+            ctx.shadowBlur = nextShadowBlur;
+            if (nextShadowBlur > 0) ctx.shadowColor = "#00ff00";
+            currentShadowBlur = nextShadowBlur;
+          }
+
+          if (displayColor !== currentFillStyle) {
+            ctx.fillStyle = displayColor;
+            currentFillStyle = displayColor;
+          }
+
+          ctx.fillText(displayChar, x * charWidth + charWidth / 2, cy);
 
           charIndex++;
         }
@@ -357,11 +368,14 @@ export const AsciiArt: React.FC<AsciiArtProps> = ({
   useEffect(() => {
     if (!isLoaded || asciiData.length === 0) return;
 
+    let pendingFrame: number | null = null;
+
     const draw = () => {
+      pendingFrame = null;
       const canvas = canvasRef.current;
       const container = containerRef.current;
       if (!canvas || !container) {
-        requestAnimationFrame(draw);
+        pendingFrame = requestAnimationFrame(draw);
         return;
       }
 
@@ -393,6 +407,7 @@ export const AsciiArt: React.FC<AsciiArtProps> = ({
         if (progress < 1) {
           animationRef.current = requestAnimationFrame(animate);
         } else {
+          animationRef.current = null;
           setHasAnimated(true);
         }
       };
@@ -400,12 +415,13 @@ export const AsciiArt: React.FC<AsciiArtProps> = ({
       animationRef.current = requestAnimationFrame(animate);
     };
 
-    const frameId = requestAnimationFrame(draw);
+    pendingFrame = requestAnimationFrame(draw);
 
     return () => {
-      cancelAnimationFrame(frameId);
-      if (animationRef.current) {
+      if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
+      if (animationRef.current !== null) {
         cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
     };
   }, [

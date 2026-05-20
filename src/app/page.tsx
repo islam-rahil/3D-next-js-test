@@ -7,7 +7,8 @@ import Art from "../compoments/Art";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-black text-white font-mono">
+    <>
+                <main className="min-h-screen bg-black text-white font-mono">
       <Navbar />
 
       {/* HERO */}
@@ -79,11 +80,15 @@ export default function Home() {
 
       {/* ABOUT */}
       <About />
-      <div className="flex flex-col justify-end items-end max-w-8xl">
+      <div className="absolute top-[100%] left-0  flex flex-col justify-end items-end max-w-8xl">
          <Art img="/tb2.jpg" resolution={900}/>
       </div>
-      <Footer />
+    
     </main>
+    
+      <Footer />
+    </>
+
   );
 }
 

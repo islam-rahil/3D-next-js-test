@@ -17,7 +17,7 @@ export default function Art({ img, resolution = 200 }: ArtProps) {
       //animationStyle="fade"
       animationDuration={3}
       animateOnView={false}
-      className="absolute top-[100%] left-0 mx-auto aspect-square max-w-8xl h-auto bg-neutral-950  rounded-md"
+      className="relative top-[100%] left-0 mx-auto aspect-square max-w-8xl h-auto bg-neutral-950  rounded-md"
     />
   );
 }
